@@ -26,6 +26,7 @@
 
 import time
 import datetime
+import os.path
 
 # GData libraries from Google
 import gdata.youtube
