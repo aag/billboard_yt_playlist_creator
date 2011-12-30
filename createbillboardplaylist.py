@@ -139,7 +139,6 @@ def CreatePlaylistFromFeed(feed_url, chart_name, num_songs_phrase, web_url):
     return True
 
 
-# Load config values
 #################################
 # Load Config From settings.cfg #
 #################################
