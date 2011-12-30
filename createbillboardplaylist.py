@@ -27,6 +27,7 @@
 import time
 import datetime
 import os.path
+from ConfigParser import SafeConfigParser
 
 # GData libraries from Google
 import gdata.youtube
