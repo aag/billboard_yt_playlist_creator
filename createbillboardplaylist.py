@@ -109,8 +109,8 @@ def AddRssEntriesToPlaylist(pl_id, rss):
     # Parse out the rank, artist, and song title from the <title> element
     rss_title = item.title
     song_rank = rss_title[:rss_title.find(':')]
-    song_name = rss_title[rss_title.find(':') + 2:rss_title.find(',')]
-    artist = rss_title[rss_title.find(',') + 2:]
+    song_name = rss_title[rss_title.find(':') + 2:]
+    artist = item.artist
     query = artist + ' ' + song_name
     song_title = '#' + song_rank + ': ' + artist + ' - ' + song_name
 
