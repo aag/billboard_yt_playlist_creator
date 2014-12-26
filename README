@@ -30,3 +30,6 @@ Copy settings-example.cfg to settings.cfg and fill in your Google API Developer 
 YouTube account information.  Then run:
 
 $ python createbillboardplaylist.py
+
+
+This code is free software licensed under the GPL 3.
