@@ -1,5 +1,5 @@
-Create Billboard Charts YouTube Playlist script
-===============================================
+Create YouTube Playlists of Music Charts
+========================================
 This is a Python script that will download some of the current Billboard charts
 and create YouTube playlists containing videos for all the songs for the charts.
 If it is run regularly, it will create new playlists each week for the
