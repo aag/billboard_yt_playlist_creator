@@ -44,4 +44,4 @@ $ python createbillboardplaylist.py
 License
 -------
 This code is free software licensed under the GPL 3. See the
-[COPYING](COPYING) file for details.
+[LICENSE.md](LICENSE.md) file for details.
