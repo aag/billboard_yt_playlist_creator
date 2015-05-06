@@ -122,7 +122,7 @@ def add_rss_entries_to_playlist(pl_id, rss):
 def create_playlist_from_feed(feed_url, chart_name, num_songs_phrase, web_url):
     # Get the songs from the Billboard RSS feed
     rss = feedparser.parse(feed_url)
-    feed_date = time.strftime("%B %d, %Y", rss.entries[0].date_parsed)
+    feed_date = time.strftime("%B %d, %Y", rss.entries[0].published_parsed)
 
     # Create a new playlist, if it doesn't already exist
     pl_title = chart_name + " - " + feed_date
