@@ -179,15 +179,8 @@ def load_config_values():
 
     return config_values
     
-
-# Almost every function needs the YouTube service, so just use a global
-global yt_service
-
-
-if __name__ == '__main__':
+def create_youtube_service(config):
     global yt_service
-
-    config = load_config_values()
 
     # Create the service to use throughout the script
     yt_service = gdata.youtube.service.YouTubeService()
@@ -206,6 +199,15 @@ if __name__ == '__main__':
 
     # Do the login
     yt_service.ProgrammaticLogin()
+
+
+# Almost every function needs the YouTube service, so just use a global
+global yt_service
+
+
+if __name__ == '__main__':
+    config = load_config_values()
+    create_youtube_service(config)
 
     # Billboard Hot 100
     created = create_playlist_from_feed(
