@@ -180,7 +180,13 @@ def load_config_values():
     return config_values
     
 
+# Almost every function needs the YouTube service, so just use a global
+global yt_service
+
+
 if __name__ == '__main__':
+    global yt_service
+
     config = load_config_values()
 
     # Create the service to use throughout the script
