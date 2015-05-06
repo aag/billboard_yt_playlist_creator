@@ -138,118 +138,116 @@ def CreatePlaylistFromFeed(feed_url, chart_name, num_songs_phrase, web_url):
     AddRssEntriesToPlaylist(pl_id, rss)
     return True
 
+if __name__ == '__main__':
+    # Load Config From settings.cfg #
+    scriptDir = os.path.dirname(__file__)
+    if (scriptDir == ""):
+      scriptDir = "."
+    scriptDir = scriptDir + '/'
+    configPath = scriptDir + 'settings.cfg'
+    sectionName = 'accounts'
 
-#################################
-# Load Config From settings.cfg #
-#################################
-scriptDir = os.path.dirname(__file__)
-if (scriptDir == ""):
-  scriptDir = "."
-scriptDir = scriptDir + '/'
-configPath = scriptDir + 'settings.cfg'
-sectionName = 'accounts'
+    if (not os.path.exists(configPath)):
+      print "Error: No config file found. Copy settings-example.cfg to settings.cfg and customize it."
+      exit()
 
-if (not os.path.exists(configPath)):
-  print "Error: No config file found. Copy settings-example.cfg to settings.cfg and customize it."
-  exit()
+    config = SafeConfigParser()
+    config.read(configPath)
 
-config = SafeConfigParser()
-config.read(configPath)
+    # Do basic checks on the config file
+    if not config.has_section(sectionName):
+      print "Error: The config file doesn't have an accounts section. Check the config file format."
+      exit()
 
-# Do basic checks on the config file
-if not config.has_section(sectionName):
-  print "Error: The config file doesn't have an accounts section. Check the config file format."
-  exit()
+    if not config.has_option(sectionName, 'developer_key'):
+      print "Error: No developer key found in the config file.  Check the config file values."
+      exit()
 
-if not config.has_option(sectionName, 'developer_key'):
-  print "Error: No developer key found in the config file.  Check the config file values."
-  exit()
+    if not config.has_option(sectionName, 'email'):
+      print "Error: No YouTube account email found in the config file. Check the config file values."
+      exit()
 
-if not config.has_option(sectionName, 'email'):
-  print "Error: No YouTube account email found in the config file. Check the config file values."
-  exit()
+    if not config.has_option(sectionName, 'password'):
+      print "Error: No YouTube account password found in the config file.  Check the config file values."
+      exit()
 
-if not config.has_option(sectionName, 'password'):
-  print "Error: No YouTube account password found in the config file.  Check the config file values."
-  exit()
-
-# Pull out the values from the config file
-dev_key = config.get(sectionName, 'developer_key')
-email = config.get(sectionName, 'email')
-password = config.get(sectionName, 'password')
+    # Pull out the values from the config file
+    dev_key = config.get(sectionName, 'developer_key')
+    email = config.get(sectionName, 'email')
+    password = config.get(sectionName, 'password')
 
 
-# Create the service to use throughout the script
-yt_service = gdata.youtube.service.YouTubeService()
+    # Create the service to use throughout the script
+    yt_service = gdata.youtube.service.YouTubeService()
 
-# The YouTube API does not currently support HTTPS/SSL access.
-yt_service.ssl = False
+    # The YouTube API does not currently support HTTPS/SSL access.
+    yt_service.ssl = False
 
-# The developer key for the Google API product
-yt_service.developer_key = dev_key
+    # The developer key for the Google API product
+    yt_service.developer_key = dev_key
 
-# Set up authentication for the YouTube user
-yt_service.email = email
-yt_service.password = password
+    # Set up authentication for the YouTube user
+    yt_service.email = email
+    yt_service.password = password
 
-yt_service.source = 'BillboardPlaylistMaker'
+    yt_service.source = 'BillboardPlaylistMaker'
 
-# Do the login
-yt_service.ProgrammaticLogin()
+    # Do the login
+    yt_service.ProgrammaticLogin()
 
-# Billboard Hot 100
-created = CreatePlaylistFromFeed(
-            "http://www.billboard.com/rss/charts/hot-100",
-            "Hot 100",
-            "",
-            "http://www.billboard.com/charts/hot-100"
-            )
+    # Billboard Hot 100
+    created = CreatePlaylistFromFeed(
+                "http://www.billboard.com/rss/charts/hot-100",
+                "Hot 100",
+                "",
+                "http://www.billboard.com/charts/hot-100"
+                )
 
-# Wait for 20 minutes to make the GData rate quota happy
-if created:
-  time.sleep(1200)
+    # Wait for 20 minutes to make the GData rate quota happy
+    if created:
+      time.sleep(1200)
 
-# Billboard Rock Songs
-created = CreatePlaylistFromFeed(
-            "http://www.billboard.com/rss/charts/rock-songs",
-            "Rock",
-            "top 25 ",
-            "http://www.billboard.com/charts/rock-songs"
-            )
+    # Billboard Rock Songs
+    created = CreatePlaylistFromFeed(
+                "http://www.billboard.com/rss/charts/rock-songs",
+                "Rock",
+                "top 25 ",
+                "http://www.billboard.com/charts/rock-songs"
+                )
 
-# Wait for 20 minutes to make the GData rate quota happy
-if created:
-  time.sleep(1200)
+    # Wait for 20 minutes to make the GData rate quota happy
+    if created:
+      time.sleep(1200)
 
-# Billboard R&B/Hip-Hop Songs 
-created = CreatePlaylistFromFeed(
-            "http://www.billboard.com/rss/charts/r-b-hip-hop-songs",
-            "R&B/Hip-Hop",
-            "top 50 ",
-            "http://www.billboard.com/charts/r-b-hip-hop-songs"
-            )
+    # Billboard R&B/Hip-Hop Songs 
+    created = CreatePlaylistFromFeed(
+                "http://www.billboard.com/rss/charts/r-b-hip-hop-songs",
+                "R&B/Hip-Hop",
+                "top 50 ",
+                "http://www.billboard.com/charts/r-b-hip-hop-songs"
+                )
 
-# Wait for 20 minutes to make the GData rate quota happy
-if created:
-  time.sleep(1200)
+    # Wait for 20 minutes to make the GData rate quota happy
+    if created:
+      time.sleep(1200)
 
-# Billboard Dance/Club Play Songs
-created = CreatePlaylistFromFeed(
-            "http://www.billboard.com/rss/charts/dance-club-play-songs",
-            "Dance/Club Play",
-            "top 25 ",
-            "http://www.billboard.com/charts/dance-club-play-songs"
-            )
+    # Billboard Dance/Club Play Songs
+    created = CreatePlaylistFromFeed(
+                "http://www.billboard.com/rss/charts/dance-club-play-songs",
+                "Dance/Club Play",
+                "top 25 ",
+                "http://www.billboard.com/charts/dance-club-play-songs"
+                )
 
-# Wait for 20 minutes to make the GData rate quota happy
-if created:
-  time.sleep(1200)
+    # Wait for 20 minutes to make the GData rate quota happy
+    if created:
+      time.sleep(1200)
 
-# Billboard Pop Songs
-created = CreatePlaylistFromFeed(
-            "http://www.billboard.com/rss/charts/pop-songs",
-            "Pop",
-            "top 20 ",
-            "http://www.billboard.com/charts/pop-songs"
-            )
+    # Billboard Pop Songs
+    created = CreatePlaylistFromFeed(
+                "http://www.billboard.com/rss/charts/pop-songs",
+                "Pop",
+                "top 20 ",
+                "http://www.billboard.com/charts/pop-songs"
+                )
 
