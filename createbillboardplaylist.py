@@ -138,8 +138,8 @@ def create_playlist_from_feed(feed_url, chart_name, num_songs_phrase, web_url):
 		add_rss_entries_to_playlist(pl_id, rss)
 		return True
 
-if __name__ == '__main__':
-    # Load Config From settings.cfg #
+def load_config_values():
+    # Load Config From settings.cfg
     scriptDir = os.path.dirname(__file__)
     if (scriptDir == ""):
 		scriptDir = "."
@@ -171,11 +171,17 @@ if __name__ == '__main__':
 		print "Error: No YouTube account password found in the config file.  Check the config file values."
 		exit()
 
-    # Pull out the values from the config file
-    dev_key = config.get(sectionName, 'developer_key')
-    email = config.get(sectionName, 'email')
-    password = config.get(sectionName, 'password')
+    config_values = {
+            'dev_key': config.get(sectionName, 'developer_key'),
+            'email': config.get(sectionName, 'email'),
+            'password': config.get(sectionName, 'password')
+        }
 
+    return config_values
+    
+
+if __name__ == '__main__':
+    config = load_config_values()
 
     # Create the service to use throughout the script
     yt_service = gdata.youtube.service.YouTubeService()
@@ -184,11 +190,11 @@ if __name__ == '__main__':
     yt_service.ssl = False
 
     # The developer key for the Google API product
-    yt_service.developer_key = dev_key
+    yt_service.developer_key = config['dev_key']
 
     # Set up authentication for the YouTube user
-    yt_service.email = email
-    yt_service.password = password
+    yt_service.email = config['email']
+    yt_service.password = config['password']
 
     yt_service.source = 'BillboardPlaylistMaker'
 
