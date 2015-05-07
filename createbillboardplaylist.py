@@ -42,6 +42,10 @@ from oauth2client.tools import run_flow
 # Universal Feed Parser
 import feedparser
 
+# Almost every function needs the YouTube resource, so just use a global
+global youtube
+
+
 def get_video_id_for_search(query):
     """Returns the videoId of the first search result if at least one video
        was found by searching for the given query, otherwise returns None"""
@@ -150,6 +154,7 @@ def add_rss_entries_to_playlist(pl_id, rss):
 
         print 'Adding ' + song_title
         add_first_found_video_to_playlist(pl_id, query)
+    print("\n---\n")
 
 def create_playlist_from_feed(feed_url, chart_name, num_songs_phrase, web_url):
     # Get the songs from the Billboard RSS feed
@@ -239,22 +244,9 @@ def create_youtube_service(config):
         http=credentials.authorize(httplib2.Http())
     )
 
-
-# Almost every function needs the YouTube resource, so just use a global
-global youtube
-
-
-if __name__ == '__main__':
+def main():
     config = load_config_values()
     create_youtube_service(config)
-
-    # Billboard Hot 100
-    created = create_playlist_from_feed(
-        "http://www.billboard.com/rss/charts/hot-100",
-        "Hot 100",
-        "",
-        "http://www.billboard.com/charts/hot-100"
-    )
 
     # Billboard Rock Songs
     created = create_playlist_from_feed(
@@ -288,3 +280,14 @@ if __name__ == '__main__':
         "http://www.billboard.com/charts/pop-songs"
     )
 
+    # Billboard Hot 100
+    created = create_playlist_from_feed(
+        "http://www.billboard.com/rss/charts/hot-100",
+        "Hot 100",
+        "",
+        "http://www.billboard.com/charts/hot-100"
+    )
+
+
+if __name__ == '__main__':
+    main()
