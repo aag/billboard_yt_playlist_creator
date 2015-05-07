@@ -260,7 +260,7 @@ def main():
     created = create_playlist_from_feed(
         "http://www.billboard.com/rss/charts/r-b-hip-hop-songs",
         "R&B/Hip-Hop",
-        "top 50 ",
+        "top 25 ",
         "http://www.billboard.com/charts/r-b-hip-hop-songs"
     )
 
