@@ -33,16 +33,13 @@ Usage
 -----
 1. Clone the git repository.
 
-2. Install the Python dependencies. The Google API Client Library and Gflags
-    can be installed with pip:
+2. Install the Python dependencies. If you have pip installed, you can use
+    these commands:
 
     ```sh
-    $ pip install --upgrade google-api-python-client
+    $ sudo pip install --upgrade google-api-python-client
+    $ sudo pip install --upgrade feedparser
     ```
-
-    Universal Feed Parser has to be downloaded and installed via the included
-    `setup.py` script. See [the PyPI page](https://pypi.python.org/pypi/feedparser)
-    for more information.
 
 3. Generate a new Installed Application Client ID and download the JSON key
     from the Credentials page of your
@@ -77,7 +74,6 @@ Usage
     ```sh
     $ python createbillboardplaylist.py
     ```
-
 
 
 License
