@@ -9,7 +9,7 @@
 # An example of what the script creates can be seen here:
 # http://www.youtube.com/user/GimmeThatHotPopMusic
 #
-# Copyright 2011 Adam Goforth
+# Copyright 2011-2015 Adam Goforth
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,79 +24,113 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import time
+import argparse
 import datetime
+import httplib2
 import os.path
+import sys
+import time
 from ConfigParser import SafeConfigParser
 
-# GData libraries from Google
-import gdata.youtube
-import gdata.youtube.service
+# Google Data API
+import oauth2client
+from apiclient.discovery import build
+from oauth2client.file import Storage
+from oauth2client.client import flow_from_clientsecrets
+from oauth2client.tools import run_flow
 
 # Universal Feed Parser
 import feedparser
 
-###########################
-# Utility Functions
-#
-# Most of these functions were taken from the YouTube API Python
-# Developer's Guide
-# http://code.google.com/apis/youtube/1.0/developers_guide_python.html
-###########################
+def get_video_id_for_search(query):
+    """Returns the videoId of the first search result if at least one video
+       was found by searching for the given query, otherwise returns None"""
 
-def get_feed_by_search_query(search_terms):
-    query = gdata.youtube.service.YouTubeVideoQuery()
-    query.vq = search_terms
-    query.orderby = 'relevance'
-    query.racy = 'include'
-    query.max_results = 1
-    return yt_service.YouTubeQuery(query)
+    search_response = youtube.search().list(
+        q=query,
+        part="id,snippet",
+        maxResults=1,
+        safeSearch="none",
+        type="video",
+        fields="items"
+    ).execute()
+
+    if (len(search_response['items']) == 0):
+        return None
+
+    return search_response['items'][0]['id']['videoId']
 
 def playlist_url_from_id(pl_id):
-    return 'http://gdata.youtube.com/feeds/api/playlists/' + pl_id
+    return "https://www.youtube.com/playlist?list={0}".format(pl_id)
 
-def add_first_found_video_to_playlist(pl_id, search_terms, video_title):
-    query_feed = get_feed_by_search_query(search_terms)
-    # Try waiting here to make the GData rate quota happy
-    time.sleep(5)
+def add_video_to_playlist(pl_id, video_id):
+    print ("\tAdding video pl_id: " + pl_id + " video_id: " + video_id)
 
-    video_id = ""
-    for entry in query_feed.entry:
-        video_id = entry.id.text.split('/')[-1]
+    video_insert_response = youtube.playlistItems().insert(
+        part="snippet",
+        body=dict(
+            snippet=dict(
+                playlistId=pl_id,
+                resourceId=dict(
+                    kind="youtube#video",
+                    videoId=video_id
+                )
+            )
+        ),
+        fields="snippet"
+    ).execute()
+
+    title = video_insert_response['snippet']['title']
+
+    print(u'\tVideo added: {0}'.format(title))
+
+def add_first_found_video_to_playlist(pl_id, search_query):
+    video_id = get_video_id_for_search(search_query)
 
     # No search results were found, so print a message and return
-    if video_id == "":
-        print "No search results found for '" + search_terms + "'. Moving on to the next song."
+    if video_id == None:
+        print("No search results found for '" + search_query + "'. "
+              "Moving on to the next song.")
         return
 
-    video_title = ''
+    add_video_to_playlist(pl_id, video_id)
 
-    print "Adding video with info pl_id: " + pl_id + " playlist url: " + playlist_url_from_id(pl_id) + " video_id: " + video_id + " video_title: " + video_title
-    playlist_video_entry = yt_service.AddPlaylistVideoEntryToPlaylist(
-        playlist_url_from_id(pl_id), video_id, video_title, '')
+def create_new_playlist(title, description):
+    playlists_insert_response = youtube.playlists().insert(
+        part="snippet,status",
+        body=dict(
+            snippet=dict(
+                title=title,
+                description=description
+            ),
+            status=dict(
+                privacyStatus="public"
+            )
+        ),
+        fields="id"
+    ).execute()
 
-    if isinstance(playlist_video_entry, gdata.youtube.YouTubePlaylistVideoEntry):
-        print 'Video added. Title: "' + video_title + '", ID: ' + video_id
-
-def add_new_playlist(pl_title, pl_description):
-    pl_entry = yt_service.AddPlaylist(pl_title, pl_description)
-    # Try waiting here to make the GData rate quota happy
-    time.sleep(5)
-
-    if isinstance(pl_entry, gdata.youtube.YouTubePlaylistEntry):
-        print 'New playlist added'
-
-    pl_id = pl_entry.id.text.split('/')[-1]
+    pl_id = playlists_insert_response['id']
     pl_url = playlist_url_from_id(pl_id)
 
-    print "Playlist ID: " + pl_id + ", URL: " + pl_url
+    print "New playlist added: {0}".format(title)
+    print "\tID: {0}".format(pl_id)
+    print "\tURL: {0}".format(pl_url)
+
     return pl_id
 
 def playlist_exists_with_title(title):
-    existing_playlists = yt_service.GetYouTubePlaylistFeed(username='default')
-    for entry in existing_playlists.entry:
-        if entry.title.text == title:
+    playlists = youtube.playlists().list(
+        part="snippet",
+        mine=True,
+        maxResults=10,
+        fields="items"
+    ).execute()
+
+    for playlist in playlists['items']:
+        if playlist['snippet']['title'] == title:
             return True
+
     return False
 
 def add_rss_entries_to_playlist(pl_id, rss):
@@ -115,9 +149,7 @@ def add_rss_entries_to_playlist(pl_id, rss):
         song_title = '#' + song_rank + ': ' + artist + ' - ' + song_name
 
         print 'Adding ' + song_title
-        add_first_found_video_to_playlist(pl_id, query, song_title)
-        # Wait here to make the GData rate quota happy
-        time.sleep(15)
+        add_first_found_video_to_playlist(pl_id, query)
 
 def create_playlist_from_feed(feed_url, chart_name, num_songs_phrase, web_url):
     # Get the songs from the Billboard RSS feed
@@ -125,16 +157,19 @@ def create_playlist_from_feed(feed_url, chart_name, num_songs_phrase, web_url):
     feed_date = time.strftime("%B %d, %Y", rss.entries[0].published_parsed)
 
     # Create a new playlist, if it doesn't already exist
-    pl_title = chart_name + " - " + feed_date
-    pl_description = "This playlist contains the " + num_songs_phrase + "songs in the Billboard " + chart_name + " Songs chart for the week of " + feed_date + ".  " + web_url
     pl_id = ""
+    pl_title = "{0} - {1}".format(chart_name, feed_date)
+    pl_description = ("This playlist contains the " + num_songs_phrase + "songs "
+                      "in the Billboard " + chart_name + " Songs chart for the "
+                      "week of " + feed_date + ".  " + web_url)
+
     # Check for an existing playlist with the same title
     if playlist_exists_with_title(pl_title):
-        print "Playlist already exists with title '" + pl_title + "'.  Delete it manually and re-run the script to recreate it."
-        time.sleep(3)
+        print("Playlist already exists with title '" + pl_title + "'. "
+              "Delete it manually and re-run the script to recreate it.")
         return False
     else:
-        pl_id = add_new_playlist(pl_title, pl_description)
+        pl_id = create_new_playlist(pl_title, pl_description)
         add_rss_entries_to_playlist(pl_id, rss)
         return True
 
@@ -159,50 +194,54 @@ def load_config_values():
         print "Error: The config file doesn't have an accounts section. Check the config file format."
         exit()
 
-    if not config.has_option(sectionName, 'developer_key'):
+    if not config.has_option(sectionName, 'api_key'):
         print "Error: No developer key found in the config file.  Check the config file values."
         exit()
 
-    if not config.has_option(sectionName, 'email'):
-        print "Error: No YouTube account email found in the config file. Check the config file values."
-        exit()
-
-    if not config.has_option(sectionName, 'password'):
-        print "Error: No YouTube account password found in the config file.  Check the config file values."
-        exit()
-
     config_values = {
-            'dev_key': config.get(sectionName, 'developer_key'),
-            'email': config.get(sectionName, 'email'),
-            'password': config.get(sectionName, 'password')
-        }
+        'api_key': config.get(sectionName, 'api_key')
+    }
 
     return config_values
     
 def create_youtube_service(config):
-    global yt_service
+    global youtube
+
+    YOUTUBE_READ_WRITE_SCOPE = "https://www.googleapis.com/auth/youtube"
+    YOUTUBE_API_SERVICE_NAME = "youtube"
+    YOUTUBE_API_VERSION = "v3"
+    CLIENT_SECRETS_FILE = "client_secrets.json"
+    MISSING_SECRETS_MESSAGE = "Error: {0} is missing".format(CLIENT_SECRETS_FILE)
+
+    # Do OAuth2 authentication
+    flow = flow_from_clientsecrets(
+        CLIENT_SECRETS_FILE,
+        message=MISSING_SECRETS_MESSAGE,
+        scope=YOUTUBE_READ_WRITE_SCOPE
+    )
+
+    storage = Storage("oauth2.json")
+    credentials = storage.get()
+
+    if credentials is None or credentials.invalid:
+        parser = argparse.ArgumentParser(description=__doc__,
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+            parents=[oauth2client.tools.argparser])
+        flags = parser.parse_args()
+
+        credentials = run_flow(flow, storage, flags)
 
     # Create the service to use throughout the script
-    yt_service = gdata.youtube.service.YouTubeService()
-
-    # The YouTube API does not currently support HTTPS/SSL access.
-    yt_service.ssl = False
-
-    # The developer key for the Google API product
-    yt_service.developer_key = config['dev_key']
-
-    # Set up authentication for the YouTube user
-    yt_service.email = config['email']
-    yt_service.password = config['password']
-
-    yt_service.source = 'BillboardPlaylistMaker'
-
-    # Do the login
-    yt_service.ProgrammaticLogin()
+    youtube = build(
+        YOUTUBE_API_SERVICE_NAME,
+        YOUTUBE_API_VERSION,
+        developerKey=config['api_key'],
+        http=credentials.authorize(httplib2.Http())
+    )
 
 
-# Almost every function needs the YouTube service, so just use a global
-global yt_service
+# Almost every function needs the YouTube resource, so just use a global
+global youtube
 
 
 if __name__ == '__main__':
@@ -211,57 +250,41 @@ if __name__ == '__main__':
 
     # Billboard Hot 100
     created = create_playlist_from_feed(
-                "http://www.billboard.com/rss/charts/hot-100",
-                "Hot 100",
-                "",
-                "http://www.billboard.com/charts/hot-100"
-                )
-
-    # Wait for 20 minutes to make the GData rate quota happy
-    if created:
-        time.sleep(1200)
+        "http://www.billboard.com/rss/charts/hot-100",
+        "Hot 100",
+        "",
+        "http://www.billboard.com/charts/hot-100"
+    )
 
     # Billboard Rock Songs
     created = create_playlist_from_feed(
-                "http://www.billboard.com/rss/charts/rock-songs",
-                "Rock",
-                "top 25 ",
-                "http://www.billboard.com/charts/rock-songs"
-                )
-
-    # Wait for 20 minutes to make the GData rate quota happy
-    if created:
-        time.sleep(1200)
+        "http://www.billboard.com/rss/charts/rock-songs",
+        "Rock",
+        "top 25 ",
+        "http://www.billboard.com/charts/rock-songs"
+    )
 
     # Billboard R&B/Hip-Hop Songs 
     created = create_playlist_from_feed(
-                "http://www.billboard.com/rss/charts/r-b-hip-hop-songs",
-                "R&B/Hip-Hop",
-                "top 50 ",
-                "http://www.billboard.com/charts/r-b-hip-hop-songs"
-                )
-
-    # Wait for 20 minutes to make the GData rate quota happy
-    if created:
-        time.sleep(1200)
+        "http://www.billboard.com/rss/charts/r-b-hip-hop-songs",
+        "R&B/Hip-Hop",
+        "top 50 ",
+        "http://www.billboard.com/charts/r-b-hip-hop-songs"
+    )
 
     # Billboard Dance/Club Play Songs
     created = create_playlist_from_feed(
-                "http://www.billboard.com/rss/charts/dance-club-play-songs",
-                "Dance/Club Play",
-                "top 25 ",
-                "http://www.billboard.com/charts/dance-club-play-songs"
-                )
-
-    # Wait for 20 minutes to make the GData rate quota happy
-    if created:
-        time.sleep(1200)
+        "http://www.billboard.com/rss/charts/dance-club-play-songs",
+        "Dance/Club Play",
+        "top 25 ",
+        "http://www.billboard.com/charts/dance-club-play-songs"
+    )
 
     # Billboard Pop Songs
     created = create_playlist_from_feed(
-                "http://www.billboard.com/rss/charts/pop-songs",
-                "Pop",
-                "top 20 ",
-                "http://www.billboard.com/charts/pop-songs"
-                )
+        "http://www.billboard.com/rss/charts/pop-songs",
+        "Pop",
+        "top 20 ",
+        "http://www.billboard.com/charts/pop-songs"
+    )
 

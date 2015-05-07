@@ -1,2 +1,4 @@
 .*.swp
 settings.cfg
+client_secrets.json
+oauth2.json

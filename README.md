@@ -26,20 +26,59 @@ http://www.youtube.com/user/GimmeThatHotPopMusic
 
 Dependencies
 ------------
-- [Google GData API Python Client 2.0](http://code.google.com/p/gdata-python-client/)
-- [Universal Feed Parser 4.1](http://code.google.com/p/feedparser/)
+- [Google API v3 Client Library for Python](https://developers.google.com/api-client-library/python/)
+- [Universal Feed Parser 4.1+](http://code.google.com/p/feedparser/)
 
 Usage
 -----
-Download the Python dependencies and install them using the included
-installation instructions.
+1. Clone the git repository.
 
-Copy settings-example.cfg to settings.cfg and fill in your Google API Developer
-Key and YouTube account information.  Then run:
+2. Install the Python dependencies. The Google API Client Library and Gflags
+    can be installed with pip:
 
-```sh
-$ python createbillboardplaylist.py
-```
+    ```sh
+    $ pip install --upgrade google-api-python-client
+    ```
+
+    Universal Feed Parser has to be downloaded and installed via the included
+    `setup.py` script. See [the PyPI page](https://pypi.python.org/pypi/feedparser)
+    for more information.
+
+3. Generate a new Installed Application Client ID and download the JSON key
+    from the Credentials page of your
+    [Google Developer Console](https://console.developers.google.com/). Click
+    the "Create a new Client ID" under OAuth and choose "Installed application"
+    and "Other" in the dialog box that appears. You will have to enter some
+    information about your application. Once the Client ID has been generated,
+    click the "Download JSON" button and save the file with the name
+    `client_secrets.json` in the root directory of your clone of the git
+    repository.
+
+4. Generate a Public API access key by clicking the "Create new Key" button.
+
+5. Copy `settings-example.cfg` to `settings.cfg` and fill in your
+    Public API access key. Then run:
+
+    ```sh
+    $ python createbillboardplaylist.py --noauth_local_webserver
+    ```
+
+6. The first time you run the script, you will have to authenticate the
+    application in a web browser. Open the URL that the script outputs,
+    approve the application for the YouTube Account in which you want to
+    create the playlists, and enter the verification code on the command line.
+    This will create a file, `oauth2.json`, which must be kept in the root
+    of the git repository as long as you want to upload playlists to this
+    account.
+
+7. In subsequent runs of the script, you can run it without any command line
+    arguments:
+
+    ```sh
+    $ python createbillboardplaylist.py
+    ```
+
+
 
 License
 -------
