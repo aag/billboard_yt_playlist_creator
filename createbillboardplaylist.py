@@ -180,11 +180,7 @@ def create_playlist_from_feed(feed_url, chart_name, num_songs_phrase, web_url):
 
 def load_config_values():
     # Load Config From settings.cfg
-    scriptDir = os.path.dirname(__file__)
-    if (scriptDir == ""):
-        scriptDir = "."
-    scriptDir = scriptDir + '/'
-    configPath = scriptDir + 'settings.cfg'
+    configPath = get_script_dir() + 'settings.cfg'
     sectionName = 'accounts'
 
     if (not os.path.exists(configPath)):
@@ -215,7 +211,7 @@ def create_youtube_service(config):
     YOUTUBE_READ_WRITE_SCOPE = "https://www.googleapis.com/auth/youtube"
     YOUTUBE_API_SERVICE_NAME = "youtube"
     YOUTUBE_API_VERSION = "v3"
-    CLIENT_SECRETS_FILE = "client_secrets.json"
+    CLIENT_SECRETS_FILE = get_script_dir() + "client_secrets.json"
     MISSING_SECRETS_MESSAGE = "Error: {0} is missing".format(CLIENT_SECRETS_FILE)
 
     # Do OAuth2 authentication
@@ -243,6 +239,9 @@ def create_youtube_service(config):
         developerKey=config['api_key'],
         http=credentials.authorize(httplib2.Http())
     )
+
+def get_script_dir():
+    return os.path.dirname(os.path.realpath(__file__)) + '/'
 
 def main():
     config = load_config_values()
