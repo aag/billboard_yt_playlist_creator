@@ -221,7 +221,7 @@ def create_youtube_service(config):
         scope=YOUTUBE_READ_WRITE_SCOPE
     )
 
-    storage = Storage("oauth2.json")
+    storage = Storage(get_script_dir() + "oauth2.json")
     credentials = storage.get()
 
     if credentials is None or credentials.invalid:
