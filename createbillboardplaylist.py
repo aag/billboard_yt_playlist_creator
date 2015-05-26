@@ -86,7 +86,7 @@ def add_video_to_playlist(pl_id, video_id):
 
     title = video_insert_response['snippet']['title']
 
-    print(u'\tVideo added: {0}'.format(title))
+    print('\tVideo added: {0}'.format(title.encode('utf-8')))
 
 def add_first_found_video_to_playlist(pl_id, search_query):
     video_id = get_video_id_for_search(search_query)
