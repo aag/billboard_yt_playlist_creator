@@ -25,7 +25,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import argparse
-import datetime
+import time
 import httplib2
 import os.path
 import sys
@@ -244,6 +244,8 @@ def get_script_dir():
     return os.path.dirname(os.path.realpath(__file__)) + '/'
 
 def main():
+    print "### Script started at " + time.strftime("%c") + " ###\n"
+
     config = load_config_values()
     create_youtube_service(config)
 
@@ -287,6 +289,7 @@ def main():
         "http://www.billboard.com/charts/hot-100"
     )
 
+    print "### Script finished at " + time.strftime("%c") + " ###\n"
 
 if __name__ == '__main__':
     main()
