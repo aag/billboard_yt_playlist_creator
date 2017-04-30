@@ -42,26 +42,38 @@ Usage
     $ sudo pip install --upgrade feedparser
     ```
 
-3. Generate a new Installed Application Client ID and download the JSON key
-    from the Credentials page of your
-    [Google Developer Console](https://console.developers.google.com/). Click
-    the "Create a new Client ID" under OAuth and choose "Installed application"
-    and "Other" in the dialog box that appears. You will have to enter some
-    information about your application. Once the Client ID has been generated,
-    click the "Download JSON" button and save the file with the name
-    `client_secrets.json` in the root directory of your clone of the git
-    repository.
+3. Create a new project in the
+    [Google Developer Console](https://console.developers.google.com/)
+    by clicking the "Select a project" dropdown in the header and clicking the
+    "Create a project" button. Give the project any name you like. After
+    creating the project, open it if it isn't opened automatically.
 
-4. Generate a Public API access key by clicking the "Create new Key" button.
+4. Enable the Youtube Data API in the Library tab of your 
+    [Google Developer Console](https://console.developers.google.com/). Open the
+    "Library" tab, then click the "Youtube Data API" link and click the "Enable"
+    link.
 
-5. Copy `settings-example.cfg` to `settings.cfg` and fill in your
-    Public API access key. Then run:
+5. Create an API key. Go to the Credentials tab in the [Google Developer
+    Console](https://console.developers.google.com/) and click "Create
+    credentials". Select "API key" from the dropdown.
+
+6. Create a new client ID. Still on the Credentials tab of the Google Developer
+    console, click "Create credentials". Select "OAuth client ID" from the list
+    and select the application type "Other". Click the "Create" button. Click
+    "OK" in the modal dialog that appears. The new client ID should appear on
+    the Credentials page. Click the "Download JSON" button for your new client
+    ID. A download of the JSON key will start in your browser. Save the file
+    with the name `client_secrets.json` in the root directory of your clone of
+    the git repository.
+
+7. Copy `settings-example.cfg` to `settings.cfg` and fill in the API key you
+    created in step #5. Then run:
 
     ```sh
     $ python createbillboardplaylist.py --noauth_local_webserver
     ```
 
-6. The first time you run the script, you will have to authenticate the
+8. The first time you run the script, you will have to authenticate the
     application in a web browser. Open the URL that the script outputs,
     approve the application for the YouTube Account in which you want to
     create the playlists, and enter the verification code on the command line.
@@ -69,7 +81,7 @@ Usage
     of the git repository as long as you want to upload playlists to this
     account.
 
-7. In subsequent runs of the script, you can run it without any command line
+9. In subsequent runs of the script, you can run it without any command line
     arguments:
 
     ```sh

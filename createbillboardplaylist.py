@@ -213,12 +213,14 @@ def create_youtube_service(config):
     YOUTUBE_API_VERSION = "v3"
     CLIENT_SECRETS_FILE = get_script_dir() + "client_secrets.json"
     MISSING_SECRETS_MESSAGE = "Error: {0} is missing".format(CLIENT_SECRETS_FILE)
+    REDIRECT_URI = "urn:ietf:wg:oauth:2.0:oob"
 
     # Do OAuth2 authentication
     flow = flow_from_clientsecrets(
         CLIENT_SECRETS_FILE,
         message=MISSING_SECRETS_MESSAGE,
-        scope=YOUTUBE_READ_WRITE_SCOPE
+        scope=YOUTUBE_READ_WRITE_SCOPE,
+        redirect_uri=REDIRECT_URI
     )
 
     storage = Storage(get_script_dir() + "oauth2.json")
