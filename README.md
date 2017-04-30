@@ -88,6 +88,12 @@ Usage
     $ python createbillboardplaylist.py
     ```
 
+Troubleshooting
+---------------
+If the script was working, but you start getting HttpError 404 responses with
+the message "Channel not found.", you may have to re-authorize the application.
+Do this by deleting the `oauth2.json` file and running the script
+with `--noauth_local_webserver`.
 
 License
 -------
