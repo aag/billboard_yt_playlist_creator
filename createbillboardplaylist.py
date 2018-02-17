@@ -53,21 +53,25 @@ def get_video_id_for_search(query):
     search_response = youtube.search().list(
         q=query,
         part="id,snippet",
-        maxResults=1,
+        maxResults=3,
         safeSearch="none",
         type="video",
         fields="items"
     ).execute()
 
-    if (len(search_response['items']) == 0):
-        return None
-    
-    first_hit = search_response['items'][0]
-
-    if (('id' not in first_hit) or ('videoId' not in first_hit['id'])):
+    items = search_response.get('items', [])
+    if (len(items) == 0):
         return None
 
-    return search_response['items'][0]['id']['videoId']
+    for item in items:
+        # The "type" parameter doesn't always work for some reason, so we have
+        # to check each item for its type.
+        if item['id']['kind'] == 'youtube#video':
+            return item['id']['videoId']
+        else:
+            print "\tResult is not a video, continuing to next result"
+
+    return None
 
 def playlist_url_from_id(pl_id):
     return "https://www.youtube.com/playlist?list={0}".format(pl_id)
