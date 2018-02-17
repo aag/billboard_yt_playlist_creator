@@ -8,7 +8,7 @@ name = "pypi"
 python_version = '2.7'
 
 [dev-packages]
-
+pylint = ">=1.8.2,<2.0.0"
 
 [packages]
 
