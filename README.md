@@ -27,19 +27,19 @@ http://www.youtube.com/user/GimmeThatHotPopMusic
 
 Dependencies
 ------------
+This script depends on Python 2.7 and these Python packages:
 - [Google API v3 Client Library for Python](https://developers.google.com/api-client-library/python/)
-- [Universal Feed Parser 4.1+](http://code.google.com/p/feedparser/)
+- [billboard.py](https://github.com/guoguo12/billboard-charts)
 
 Usage
 -----
 1. Clone the git repository.
 
-2. Install the Python dependencies. If you have pip installed, you can use
-    these commands:
+2. Install the Python dependencies with [pipenv](https://docs.pipenv.org/).
+    Run this command within the root directory of the repository:
 
     ```sh
-    $ sudo pip install --upgrade google-api-python-client
-    $ sudo pip install --upgrade feedparser
+    $ pipenv install
     ```
 
 3. Create a new project in the
@@ -53,9 +53,9 @@ Usage
     "Library" tab, then click the "Youtube Data API" link and click the "Enable"
     link.
 
-5. Create an API key. Go to the Credentials tab in the [Google Developer
-    Console](https://console.developers.google.com/) and click "Create
-    credentials". Select "API key" from the dropdown.
+5. Create an API key. Go to the Credentials tab in the
+    [Google Developer Console](https://console.developers.google.com/)
+    and click "Create credentials". Select "API key" from the dropdown.
 
 6. Create a new client ID. Still on the Credentials tab of the Google Developer
     console, click "Create credentials". Select "OAuth client ID" from the list
@@ -70,7 +70,7 @@ Usage
     created in step #5. Then run:
 
     ```sh
-    $ python createbillboardplaylist.py --noauth_local_webserver
+    $ pipenv run python createbillboardplaylist.py --noauth_local_webserver
     ```
 
 8. The first time you run the script, you will have to authenticate the
@@ -85,7 +85,7 @@ Usage
     arguments:
 
     ```sh
-    $ python createbillboardplaylist.py
+    $ pipenv run python createbillboardplaylist.py
     ```
 
 Troubleshooting
