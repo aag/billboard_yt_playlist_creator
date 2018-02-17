@@ -9,7 +9,7 @@
 # An example of what the script creates can be seen here:
 # http://www.youtube.com/user/GimmeThatHotPopMusic
 #
-# Copyright 2011-2015 Adam Goforth
+# Copyright 2011-2018 Adam Goforth
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
