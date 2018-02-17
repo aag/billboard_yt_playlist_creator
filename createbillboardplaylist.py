@@ -28,6 +28,7 @@ import argparse
 import httplib2
 import os.path
 import sys
+import time
 from ConfigParser import SafeConfigParser
 from datetime import datetime
 
@@ -59,6 +60,11 @@ def get_video_id_for_search(query):
     ).execute()
 
     if (len(search_response['items']) == 0):
+        return None
+    
+    first_hit = search_response['items'][0]
+
+    if (('id' not in first_hit) or ('videoId' not in first_hit['id'])):
         return None
 
     return search_response['items'][0]['id']['videoId']
@@ -144,7 +150,8 @@ def add_chart_entries_to_playlist(pl_id, entries):
             break
 
         query = entry.artist + ' ' + entry.title
-        song_info = '#' + entry.rank + ': ' + entry.artist + ' - ' + entry.title
+        song_info = ('#' + str(entry.rank) + ': ' + entry.artist + ' - ' +
+            entry.title)
 
         print 'Adding ' + song_info
         add_first_found_video_to_playlist(pl_id, query)
@@ -154,7 +161,7 @@ def add_chart_entries_to_playlist(pl_id, entries):
 def create_playlist_from_chart(chart_id, chart_name, num_songs_phrase, web_url):
     # Get the songs from the Billboard web page
     chart = billboard.ChartData(chart_id)
-    chart_date = chart.date.strftime("%B %d, %Y")
+    chart_date = datetime.strptime(chart.date, '%Y-%m-%d').strftime("%B %d, %Y")
 
     # Create a new playlist, if it doesn't already exist
     pl_id = ""
