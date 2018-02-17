@@ -25,12 +25,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import argparse
-import time
 import httplib2
 import os.path
 import sys
-import time
 from ConfigParser import SafeConfigParser
+from datetime import datetime
 
 # Google Data API
 import oauth2client
@@ -39,8 +38,8 @@ from oauth2client.file import Storage
 from oauth2client.client import flow_from_clientsecrets
 from oauth2client.tools import run_flow
 
-# Universal Feed Parser
-import feedparser
+# billboard.py
+import billboard
 
 # Almost every function needs the YouTube resource, so just use a global
 global youtube
@@ -137,36 +136,32 @@ def playlist_exists_with_title(title):
 
     return False
 
-def add_rss_entries_to_playlist(pl_id, rss):
+def add_chart_entries_to_playlist(pl_id, entries):
     song_count = 0
-    for item in rss['entries']:
+    for entry in entries:
         song_count += 1
         if (song_count > 100):
             break
 
-        # Parse out the rank, artist, and song title from the <title> element
-        rss_title = item.title
-        song_rank = rss_title[:rss_title.find(':')]
-        song_name = rss_title[rss_title.find(':') + 2:]
-        artist = item.artist
-        query = artist + ' ' + song_name
-        song_title = '#' + song_rank + ': ' + artist + ' - ' + song_name
+        query = entry.artist + ' ' + entry.title
+        song_info = '#' + entry.rank + ': ' + entry.artist + ' - ' + entry.title
 
-        print 'Adding ' + song_title
+        print 'Adding ' + song_info
         add_first_found_video_to_playlist(pl_id, query)
+
     print("\n---\n")
 
-def create_playlist_from_feed(feed_url, chart_name, num_songs_phrase, web_url):
-    # Get the songs from the Billboard RSS feed
-    rss = feedparser.parse(feed_url)
-    feed_date = time.strftime("%B %d, %Y", rss.entries[0].published_parsed)
+def create_playlist_from_chart(chart_id, chart_name, num_songs_phrase, web_url):
+    # Get the songs from the Billboard web page
+    chart = billboard.ChartData(chart_id)
+    chart_date = chart.date.strftime("%B %d, %Y")
 
     # Create a new playlist, if it doesn't already exist
     pl_id = ""
-    pl_title = "{0} - {1}".format(chart_name, feed_date)
+    pl_title = "{0} - {1}".format(chart_name, chart_date)
     pl_description = ("This playlist contains the " + num_songs_phrase + "songs "
                       "in the Billboard " + chart_name + " Songs chart for the "
-                      "week of " + feed_date + ".  " + web_url)
+                      "week of " + chart_date + ".  " + web_url)
 
     # Check for an existing playlist with the same title
     if playlist_exists_with_title(pl_title):
@@ -175,7 +170,7 @@ def create_playlist_from_feed(feed_url, chart_name, num_songs_phrase, web_url):
         return False
     else:
         pl_id = create_new_playlist(pl_title, pl_description)
-        add_rss_entries_to_playlist(pl_id, rss)
+        add_chart_entries_to_playlist(pl_id, chart.entries)
         return True
 
 def load_config_values():
@@ -252,40 +247,40 @@ def main():
     create_youtube_service(config)
 
     # Billboard Rock Songs
-    created = create_playlist_from_feed(
-        "http://www.billboard.com/rss/charts/rock-songs",
+    created = create_playlist_from_chart(
+        "rock-songs",
         "Rock",
         "top 25 ",
         "http://www.billboard.com/charts/rock-songs"
     )
 
     # Billboard R&B/Hip-Hop Songs 
-    created = create_playlist_from_feed(
-        "http://www.billboard.com/rss/charts/r-b-hip-hop-songs",
+    created = create_playlist_from_chart(
+        "r-b-hip-hop-songs",
         "R&B/Hip-Hop",
         "top 25 ",
         "http://www.billboard.com/charts/r-b-hip-hop-songs"
     )
 
     # Billboard Dance/Club Play Songs
-    created = create_playlist_from_feed(
-        "http://www.billboard.com/rss/charts/dance-club-play-songs",
+    created = create_playlist_from_chart(
+        "dance-club-play-songs",
         "Dance/Club Play",
         "top 25 ",
         "http://www.billboard.com/charts/dance-club-play-songs"
     )
 
     # Billboard Pop Songs
-    created = create_playlist_from_feed(
-        "http://www.billboard.com/rss/charts/pop-songs",
+    created = create_playlist_from_chart(
+        "pop-songs",
         "Pop",
         "top 20 ",
         "http://www.billboard.com/charts/pop-songs"
     )
 
     # Billboard Hot 100
-    created = create_playlist_from_feed(
-        "http://www.billboard.com/rss/charts/hot-100",
+    created = create_playlist_from_chart(
+        "hot-100",
         "Hot 100",
         "",
         "http://www.billboard.com/charts/hot-100"
