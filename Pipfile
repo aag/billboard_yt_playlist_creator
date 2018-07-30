@@ -12,5 +12,5 @@ pylint = ">=1.8.2,<2.0.0"
 
 [packages]
 
-"billboard.py" = ">=4.2.0,<5.0.0"
+"billboard.py" = ">=4.5.0,<5.0.0"
 google-api-python-client = ">=1.6.5,<2.0.0"
