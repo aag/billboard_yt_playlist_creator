@@ -30,6 +30,7 @@ Dependencies
 This script depends on Python 2.7 and these Python packages:
 - [Google API v3 Client Library for Python](https://developers.google.com/api-client-library/python/)
 - [billboard.py](https://github.com/guoguo12/billboard-charts)
+- [oauth2client](https://github.com/googleapis/oauth2client)
 
 Usage
 -----
@@ -48,23 +49,23 @@ Usage
     "Create a project" button. Give the project any name you like. After
     creating the project, open it if it isn't opened automatically.
 
-4. Enable the Youtube Data API in the Library tab of your 
+4. Enable the Youtube Data API v3 in the Library tab of your 
     [Google Developer Console](https://console.developers.google.com/). Open the
-    "Library" tab, then click the "Youtube Data API" link and click the "Enable"
-    link.
+    "Library" tab, then click the "Youtube Data API v3" link and click the
+    "Enable" link.
 
 5. Create an API key. Go to the Credentials tab in the
     [Google Developer Console](https://console.developers.google.com/)
-    and click "Create credentials". Select "API key" from the dropdown.
+    and click "Create credentials". Click "API key" link.
 
 6. Create a new client ID. Still on the Credentials tab of the Google Developer
-    console, click "Create credentials". Select "OAuth client ID" from the list
-    and select the application type "Other". Click the "Create" button. Click
-    "OK" in the modal dialog that appears. The new client ID should appear on
-    the Credentials page. Click the "Download JSON" button for your new client
-    ID. A download of the JSON key will start in your browser. Save the file
-    with the name `client_secrets.json` in the root directory of your clone of
-    the git repository.
+    console, click the "Create credentials" dropdown. Select "OAuth client ID"
+    from the list and select the application type "Other". Click the
+    "Create" button. Click "OK" in the modal dialog that appears. The new
+    client ID should appear on the Credentials page. Click the "Download JSON"
+    button for your new client ID. A download of the JSON key will start in
+    your browser. Save the file with the name `client_secrets.json` in the
+    root directory of your clone of the git repository.
 
 7. Copy `settings-example.cfg` to `settings.cfg` and fill in the API key you
     created in step #5. Then run:
@@ -73,7 +74,11 @@ Usage
     $ pipenv run python createbillboardplaylist.py --noauth_local_webserver
     ```
 
-8. The first time you run the script, you will have to authenticate the
+8. Before the first time you run the script, you will need to create a YouTube
+    channel. Go to any YouTube video and click the "Add to playlist" icon 
+    below the video. This will prompt you to create your channel.
+
+9. The first time you run the script, you will have to authenticate the
     application in a web browser. Open the URL that the script outputs,
     approve the application for the YouTube Account in which you want to
     create the playlists, and enter the verification code on the command line.
@@ -81,7 +86,7 @@ Usage
     of the git repository as long as you want to upload playlists to this
     account.
 
-9. In subsequent runs of the script, you can run it without any command line
+10. In subsequent runs of the script, you can run it without any command line
     arguments:
 
     ```sh
