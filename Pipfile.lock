@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "db1682ca2444f0c5a14039ff9c97992fdffac6c9728c0a10ec9916dc41ef9447"
+            "sha256": "ff88c06b61f2f48d6de1c759ba4909b15c81c3f31d56e2e855c9c1fcfa030e3b"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -34,10 +34,10 @@
         },
         "billboard.py": {
             "hashes": [
-                "sha256:c9bbc9153bf1e25bea196af3aec3296d4310e0f61525ca40069b28eea0296813"
+                "sha256:2feba9520d466585ceaf750e1d899560ee17ed3fbbaab19db43345f9ac544bd1"
             ],
             "index": "pypi",
-            "version": "==4.5.0"
+            "version": "==5.0.2"
         },
         "cachetools": {
             "hashes": [
