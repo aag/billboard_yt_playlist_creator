@@ -280,7 +280,7 @@ def main():
     create_playlist_from_chart(
         "rock-songs",
         "Rock",
-        "top 25 ",
+        "top 50 ",
         "http://www.billboard.com/charts/rock-songs"
     )
 
@@ -288,7 +288,7 @@ def main():
     create_playlist_from_chart(
         "r-b-hip-hop-songs",
         "R&B/Hip-Hop",
-        "top 25 ",
+        "top 50 ",
         "http://www.billboard.com/charts/r-b-hip-hop-songs"
     )
 
@@ -296,7 +296,7 @@ def main():
     create_playlist_from_chart(
         "dance-club-play-songs",
         "Dance/Club Play",
-        "top 25 ",
+        "top 50 ",
         "http://www.billboard.com/charts/dance-club-play-songs"
     )
 
@@ -304,7 +304,7 @@ def main():
     create_playlist_from_chart(
         "pop-songs",
         "Pop",
-        "top 20 ",
+        "top 40 ",
         "http://www.billboard.com/charts/pop-songs"
     )
 
