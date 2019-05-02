@@ -171,6 +171,7 @@ def add_chart_entries_to_playlist(pl_id, entries):
 
         print('Adding ' + song_info)
         add_first_found_video_to_playlist(pl_id, query)
+        time.sleep(1)
 
     print("\n---\n")
 
@@ -184,7 +185,7 @@ def create_playlist_from_chart(chart_id, chart_name, num_songs_phrase, web_url):
     pl_id = ""
     pl_title = "{0} - {1}".format(chart_name, chart_date)
     pl_description = ("This playlist contains the " + num_songs_phrase + "songs "
-                      "in the Billboard " + chart_name + " Songs chart for the "
+                      "in the " + chart_name + " Songs chart for the "
                       "week of " + chart_date + ".  " + web_url)
 
     # Check for an existing playlist with the same title
