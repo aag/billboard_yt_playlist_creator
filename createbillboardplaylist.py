@@ -54,7 +54,7 @@ def get_video_id_for_search(query):
 
     search_response = youtube.search().list(
         q=query,
-        part="id,snippet",
+        part="id",
         maxResults=3,
         safeSearch="none",
         type="video",
