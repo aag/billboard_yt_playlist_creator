@@ -9,6 +9,7 @@ python_version = '2.7'
 
 [dev-packages]
 pylint = ">=1.8.2,<2.0.0"
+flake8 = ">=3.7.7,<4.0.0"
 
 [packages]
 "billboard.py" = ">=5.0.2,<6.0.0"
