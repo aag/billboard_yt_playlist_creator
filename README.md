@@ -100,6 +100,27 @@ the message "Channel not found.", you may have to re-authorize the application.
 Do this by deleting the `oauth2.json` file and running the script
 with `--noauth_local_webserver`.
 
+Development
+-----------
+
+### Coding Style
+
+The code in the script is written to follow
+[the PEP8 style guide](https://www.python.org/dev/peps/pep-0008/).
+Both pylint and flake8 are used to check the coding style. You can install
+both of them with pipenv if you include development packages:
+
+```
+$ pipenv install --dev
+```
+
+Then you can run them both with pipenv:
+
+```
+$ pipenv run pylint *.py
+$ pipenv run flake8 *.py
+```
+
 License
 -------
 This code is free software licensed under the GPL 3. See the

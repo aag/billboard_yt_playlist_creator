@@ -3,9 +3,9 @@
 """
 This is the Create Billboard Charts YouTube Playlist script
 It is a Python script that will download some of the current Billboard charts
-and create YouTube playlists containing videos for all the songs for the charts.
-If it is run regularly, it will create new playlists each week for the new Billboard
-charts.
+and create YouTube playlists containing videos for all the songs for the
+charts. If it is run regularly, it will create new playlists each week for the
+new Billboard charts.
 
 An example of what the script creates can be seen here:
 http://www.youtube.com/user/GimmeThatHotPopMusic
@@ -26,6 +26,8 @@ http://www.youtube.com/user/GimmeThatHotPopMusic
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import print_function
+
 import argparse
 import os.path
 import time
@@ -35,7 +37,7 @@ from datetime import datetime
 import httplib2
 
 # Google Data API
-from apiclient.discovery import build
+from googleapiclient.discovery import build
 import oauth2client
 from oauth2client.file import Storage
 from oauth2client.client import flow_from_clientsecrets
@@ -44,11 +46,8 @@ from oauth2client.tools import run_flow
 # billboard.py
 import billboard
 
-# Almost every function needs the YouTube resource, so define it globally
-youtube = None
 
-
-def get_video_id_for_search(query):
+def get_video_id_for_search(youtube, query):
     """Returns the videoId of the first search result if at least one video
        was found by searching for the given query, otherwise returns None"""
 
@@ -75,14 +74,15 @@ def get_video_id_for_search(query):
 
     return None
 
+
 def playlist_url_from_id(pl_id):
     """Returns the URL of a playlist, given its ID"""
     return "https://www.youtube.com/playlist?list={0}".format(pl_id)
 
-def add_video_to_playlist(pl_id, video_id):
+
+def add_video_to_playlist(youtube, pl_id, video_id):
     """Adds the given video as the last video as the last one in the given
-    playlist
-    """
+    playlist"""
     print("\tAdding video pl_id: " + pl_id + " video_id: " + video_id)
 
     video_insert_response = youtube.playlistItems().insert(
@@ -103,9 +103,11 @@ def add_video_to_playlist(pl_id, video_id):
 
     print('\tVideo added: {0}'.format(title.encode('utf-8')))
 
-def add_first_found_video_to_playlist(pl_id, search_query):
-    """Does a search for videos and adds the first result to the given playlist"""
-    video_id = get_video_id_for_search(search_query)
+
+def add_first_video_to_playlist(youtube, pl_id, search_query):
+    """Does a search for videos and adds the first result to the given
+    playlist"""
+    video_id = get_video_id_for_search(youtube, search_query)
 
     # No search results were found, so print a message and return
     if video_id is None:
@@ -113,10 +115,12 @@ def add_first_found_video_to_playlist(pl_id, search_query):
               "Moving on to the next song.")
         return
 
-    add_video_to_playlist(pl_id, video_id)
+    add_video_to_playlist(youtube, pl_id, video_id)
 
-def create_new_playlist(title, description):
-    """Creates a new, empty YouTube playlist with the given title and description"""
+
+def create_new_playlist(youtube, title, description):
+    """Creates a new, empty YouTube playlist with the given title and
+    description"""
     playlists_insert_response = youtube.playlists().insert(
         part="snippet,status",
         body=dict(
@@ -140,8 +144,10 @@ def create_new_playlist(title, description):
 
     return pl_id
 
-def playlist_exists_with_title(title):
-    """Returns true if there is already a playlist in the channel with the given name"""
+
+def playlist_exists_with_title(youtube, title):
+    """Returns true if there is already a playlist in the channel with the
+    given name"""
     playlists = youtube.playlists().list(
         part="snippet",
         mine=True,
@@ -155,10 +161,10 @@ def playlist_exists_with_title(title):
 
     return False
 
-def add_chart_entries_to_playlist(pl_id, entries):
-    """Given the list of entries from a billboard.py listing, search for a video for each
-    entry and add it to the given playlist
-    """
+
+def add_chart_entries_to_playlist(youtube, pl_id, entries):
+    """Given the list of entries from a billboard.py listing, search for a
+    video for each entry and add it to the given playlist"""
     song_count = 0
     for entry in entries:
         song_count += 1
@@ -170,33 +176,39 @@ def add_chart_entries_to_playlist(pl_id, entries):
                      entry.title)
 
         print('Adding ' + song_info)
-        add_first_found_video_to_playlist(pl_id, query)
+        add_first_video_to_playlist(youtube, pl_id, query)
         time.sleep(1)
 
     print("\n---\n")
 
-def create_playlist_from_chart(chart_id, chart_name, num_songs_phrase, web_url):
-    """Create and populate a new playlist with the current Billboard chart with the given ID"""
+
+def create_playlist_from_chart(youtube, chart_id, chart_name, num_songs_phrase,
+                               web_url):
+    """Create and populate a new playlist with the current Billboard chart
+    with the given ID"""
     # Get the songs from the Billboard web page
     chart = billboard.ChartData(chart_id)
-    chart_date = datetime.strptime(chart.date, '%Y-%m-%d').strftime("%B %d, %Y")
+    chart_date = (datetime
+                  .strptime(chart.date, '%Y-%m-%d')
+                  .strftime("%B %d, %Y"))
 
     # Create a new playlist, if it doesn't already exist
     pl_id = ""
     pl_title = "{0} - {1}".format(chart_name, chart_date)
-    pl_description = ("This playlist contains the " + num_songs_phrase + "songs "
-                      "in the " + chart_name + " Songs chart for the "
+    pl_description = ("This playlist contains the " + num_songs_phrase +
+                      "songs in the " + chart_name + " Songs chart for the "
                       "week of " + chart_date + ".  " + web_url)
 
     # Check for an existing playlist with the same title
-    if playlist_exists_with_title(pl_title):
+    if playlist_exists_with_title(youtube, pl_title):
         print("Playlist already exists with title '" + pl_title + "'. "
               "Delete it manually and re-run the script to recreate it.")
         return
 
-    pl_id = create_new_playlist(pl_title, pl_description)
-    add_chart_entries_to_playlist(pl_id, chart.entries)
+    pl_id = create_new_playlist(youtube, pl_title, pl_description)
+    add_chart_entries_to_playlist(youtube, pl_id, chart.entries)
     return
+
 
 def load_config_values():
     """Loads config values from the settings.cfg file in the script dir"""
@@ -218,7 +230,8 @@ def load_config_values():
         exit()
 
     if not config.has_option(section_name, 'api_key'):
-        print("Error: No developer key found in the config file.  Check the config file values.")
+        print("Error: No developer key found in the config file.  Check "
+              "the config file values.")
         exit()
 
     config_values = {
@@ -227,96 +240,108 @@ def load_config_values():
 
     return config_values
 
-def create_youtube_service(config):
-    """Create an instance of the YouTube service from the Google Data API library"""
-    global youtube
 
-    YOUTUBE_READ_WRITE_SCOPE = "https://www.googleapis.com/auth/youtube"
-    YOUTUBE_API_SERVICE_NAME = "youtube"
-    YOUTUBE_API_VERSION = "v3"
-    CLIENT_SECRETS_FILE = get_script_dir() + "client_secrets.json"
-    MISSING_SECRETS_MESSAGE = "Error: {0} is missing".format(CLIENT_SECRETS_FILE)
-    REDIRECT_URI = "urn:ietf:wg:oauth:2.0:oob"
+def create_youtube_service(config):
+    """Create an instance of the YouTube service from the Google Data API
+    library"""
+    youtube_read_write_scope = "https://www.googleapis.com/auth/youtube"
+    youtube_api_service_name = "youtube"
+    youtube_api_version = "v3"
+    client_secrets_file = get_script_dir() + "client_secrets.json"
+    missing_secrets_message = "Error: {0} is missing".format(
+        client_secrets_file
+    )
+    redirect_uri = "urn:ietf:wg:oauth:2.0:oob"
 
     # Do OAuth2 authentication
     flow = flow_from_clientsecrets(
-        CLIENT_SECRETS_FILE,
-        message=MISSING_SECRETS_MESSAGE,
-        scope=YOUTUBE_READ_WRITE_SCOPE,
-        redirect_uri=REDIRECT_URI
+        client_secrets_file,
+        message=missing_secrets_message,
+        scope=youtube_read_write_scope,
+        redirect_uri=redirect_uri
     )
 
     storage = Storage(get_script_dir() + "oauth2.json")
     credentials = storage.get()
 
     if credentials is None or credentials.invalid:
-        parser = argparse.ArgumentParser(description=__doc__,
-                                         formatter_class=argparse.RawDescriptionHelpFormatter,
-                                         parents=[oauth2client.tools.argparser])
+        parser = argparse.ArgumentParser(
+            description=__doc__,
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+            parents=[oauth2client.tools.argparser],
+        )
         flags = parser.parse_args()
 
         credentials = run_flow(flow, storage, flags)
 
     # Create the service to use throughout the script
-    youtube = build(
-        YOUTUBE_API_SERVICE_NAME,
-        YOUTUBE_API_VERSION,
+    return build(
+        youtube_api_service_name,
+        youtube_api_version,
         developerKey=config['api_key'],
         http=credentials.authorize(httplib2.Http())
     )
 
+
 def get_script_dir():
     """Returns the absolute path to the script directory"""
     return os.path.dirname(os.path.realpath(__file__)) + '/'
+
 
 def main():
     """Main script function"""
     print("### Script started at " + time.strftime("%c") + " ###\n")
 
     config = load_config_values()
-    create_youtube_service(config)
+    youtube = create_youtube_service(config)
 
     # Billboard Rock Songs
     create_playlist_from_chart(
+        youtube,
         "rock-songs",
         "Rock",
         "top 50 ",
-        "http://www.billboard.com/charts/rock-songs"
+        "http://www.billboard.com/charts/rock-songs",
     )
 
     # Billboard R&B/Hip-Hop Songs
     create_playlist_from_chart(
+        youtube,
         "r-b-hip-hop-songs",
         "R&B/Hip-Hop",
         "top 50 ",
-        "http://www.billboard.com/charts/r-b-hip-hop-songs"
+        "http://www.billboard.com/charts/r-b-hip-hop-songs",
     )
 
     # Billboard Dance/Club Play Songs
     create_playlist_from_chart(
+        youtube,
         "dance-club-play-songs",
         "Dance/Club Play",
         "top 50 ",
-        "http://www.billboard.com/charts/dance-club-play-songs"
+        "http://www.billboard.com/charts/dance-club-play-songs",
     )
 
     # Billboard Pop Songs
     create_playlist_from_chart(
+        youtube,
         "pop-songs",
         "Pop",
         "top 40 ",
-        "http://www.billboard.com/charts/pop-songs"
+        "http://www.billboard.com/charts/pop-songs",
     )
 
     # Billboard Hot 100
     create_playlist_from_chart(
+        youtube,
         "hot-100",
         "Hot 100",
         "",
-        "http://www.billboard.com/charts/hot-100"
+        "http://www.billboard.com/charts/hot-100",
     )
 
     print("### Script finished at " + time.strftime("%c") + " ###\n")
+
 
 if __name__ == '__main__':
     main()

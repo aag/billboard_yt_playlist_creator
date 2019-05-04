@@ -1,5 +1,4 @@
 [[source]]
-
 url = "https://pypi.python.org/simple"
 verify_ssl = true
 name = "pypi"
@@ -8,8 +7,8 @@ name = "pypi"
 python_version = '2.7'
 
 [dev-packages]
-pylint = ">=1.8.2,<2.0.0"
 flake8 = ">=3.7.7,<4.0.0"
+pylint = "">=1.9.4,<2.0.0""
 
 [packages]
 "billboard.py" = ">=5.0.2,<6.0.0"
