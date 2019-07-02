@@ -192,8 +192,12 @@ class YoutubeAdapter(object):
         return "https://www.youtube.com/playlist?list={0}".format(pl_id)
 
 
-class BillboardAdapter(object):
-    def get_chart_data(self, chart_id, date=None):
+class BillboardAdapter(object):  # pylint: disable=too-few-public-methods
+    """An adapter class for the billboard.py library."""
+    @classmethod
+    def get_chart_data(cls, chart_id, date=None):
+        """Returns the chart data for a given chart and date. If no date is
+        given, it returns the current week's chart."""
         return billboard.ChartData(chart_id, date)
 
 
