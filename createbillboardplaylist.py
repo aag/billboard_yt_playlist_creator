@@ -192,11 +192,17 @@ class YoutubeAdapter(object):
         return "https://www.youtube.com/playlist?list={0}".format(pl_id)
 
 
+class BillboardAdapter(object):
+    def get_chart_data(self, chart_id, date=None):
+        return billboard.ChartData(chart_id, date)
+
+
 class PlaylistCreator(object):
     """This class contains the logic needed to retrieve Billboard charts and
     create playlists from them."""
-    def __init__(self, youtube):
+    def __init__(self, youtube, billboard_adapter):
         self.youtube = youtube
+        self.billboard = billboard_adapter
 
     def add_first_video_to_playlist(self, pl_id, search_query):
         """Does a search for videos and adds the first result to the given
@@ -235,7 +241,7 @@ class PlaylistCreator(object):
         """Create and populate a new playlist with the current Billboard chart
         with the given ID"""
         # Get the songs from the Billboard web page
-        chart = billboard.ChartData(chart_id)
+        chart = self.billboard.ChartData(chart_id)
         chart_date = (datetime
                       .strptime(chart.date, '%Y-%m-%d')
                       .strftime("%B %d, %Y"))
@@ -344,8 +350,9 @@ def main():
     """Script main function"""
     config = load_config()
     youtube = YoutubeAdapter(config['api_key'], get_script_dir())
+    billboard_adapter = BillboardAdapter()
 
-    playlist_creator = PlaylistCreator(youtube)
+    playlist_creator = PlaylistCreator(youtube, billboard_adapter)
     playlist_creator.create_all()
 
 
