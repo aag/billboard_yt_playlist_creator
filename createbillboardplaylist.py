@@ -311,7 +311,7 @@ class PlaylistCreator(object):
             "http://www.billboard.com/charts/hot-100",
         )
 
-		# Billboard Hot 100
+		# Billboard Country 50
         self.create_playlist_from_chart(
             "country-50",
             "Country 50",
