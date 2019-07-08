@@ -311,6 +311,14 @@ class PlaylistCreator(object):
             "http://www.billboard.com/charts/hot-100",
         )
 
+		# Billboard Hot 100
+        self.create_playlist_from_chart(
+            "country-50",
+            "Country 50",
+            "top 50",
+            "https://www.billboard.com/charts/country-songs",
+        )
+
         print("### Script finished at " + time.strftime("%c") + " ###\n")
 
 
