@@ -20,6 +20,7 @@ The script creates playlists for these charts:
 - Dance/Club Play
 - R&B/Hip-Hop
 - Rock
+- Hot Country
 
 An example of what the script creates can be seen here:
 
