@@ -313,9 +313,9 @@ class PlaylistCreator(object):
 
 		# Billboard Country 50
         self.create_playlist_from_chart(
-            "country-50",
-            "Country 50",
-            "top 50",
+            "country-songs",
+            "Hot Country",
+            "top 50 ",
             "https://www.billboard.com/charts/country-songs",
         )
 
