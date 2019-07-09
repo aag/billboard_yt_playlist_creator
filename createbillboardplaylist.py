@@ -245,7 +245,7 @@ class PlaylistCreator(object):
         """Create and populate a new playlist with the current Billboard chart
         with the given ID"""
         # Get the songs from the Billboard web page
-        chart = self.billboard.ChartData(chart_id)
+        chart = self.billboard.get_chart_data(chart_id)
         chart_date = (datetime
                       .strptime(chart.date, '%Y-%m-%d')
                       .strftime("%B %d, %Y"))
