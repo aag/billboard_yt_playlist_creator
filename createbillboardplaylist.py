@@ -241,7 +241,6 @@ class PlaylistCreator(object):
 
             self.logger.info('Adding %s', song_info)
             self.add_first_video_to_playlist(pl_id, query)
-            time.sleep(1)
 
         self.logger.info("\n---\n")
 
