@@ -1,9 +1,12 @@
 import unittest
 
+import logging
 import mock
 
 from createbillboardplaylist import PlaylistCreator
 
+# Prevent log messages from being printed
+logging.getLogger().setLevel(logging.CRITICAL)
 
 class CreatePlaylistTestCase(unittest.TestCase):
     def test_add_first_video_to_playlist(self):
@@ -15,7 +18,7 @@ class CreatePlaylistTestCase(unittest.TestCase):
         youtube = mock.Mock()
         youtube.get_video_id_for_search.return_value = video_id
 
-        playlist_creator = PlaylistCreator(youtube, billboard)
+        playlist_creator = PlaylistCreator(logging.getLogger(), youtube, billboard)
         playlist_creator.add_first_video_to_playlist(playlist_id, search_query)
 
         youtube.get_video_id_for_search.assert_called_with(search_query)
@@ -30,7 +33,7 @@ class CreatePlaylistTestCase(unittest.TestCase):
         youtube = mock.Mock()
         youtube.get_video_id_for_search.return_value = None
 
-        playlist_creator = PlaylistCreator(youtube, billboard)
+        playlist_creator = PlaylistCreator(logging.getLogger(), youtube, billboard)
         playlist_creator.add_first_video_to_playlist(playlist_id, search_query)
 
         youtube.get_video_id_for_search.assert_called_with(search_query)
@@ -54,7 +57,7 @@ class CreatePlaylistTestCase(unittest.TestCase):
         youtube = mock.Mock()
         youtube.get_video_id_for_search.return_value = video_id
 
-        playlist_creator = PlaylistCreator(youtube, billboard)
+        playlist_creator = PlaylistCreator(logging.getLogger(), youtube, billboard)
         playlist_creator.add_chart_entries_to_playlist(playlist_id, entries)
 
         youtube.get_video_id_for_search.assert_called_with(search_query)
