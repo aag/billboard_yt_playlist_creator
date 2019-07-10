@@ -324,8 +324,9 @@ class PlaylistCreator(object):
 def load_config(logger):
     """Loads config values from the settings.cfg file in the script dir"""
     config_path = get_script_dir() + 'settings.cfg'
-    section_name = 'accounts'
+    config_values = {}
 
+    # Do basic checks on the config file
     if not os.path.exists(config_path):
         logger.error("Error: No config file found. Copy settings-example.cfg "
                      "to settings.cfg and customize it.")
@@ -334,7 +335,7 @@ def load_config(logger):
     config = SafeConfigParser()
     config.read(config_path)
 
-    # Do basic checks on the config file
+    section_name = 'accounts'
     if not config.has_section(section_name):
         logger.error("Error: The config file doesn't have an accounts "
                      "section. Check the config file format.")
@@ -345,9 +346,25 @@ def load_config(logger):
                      "Check the config file values.")
         exit()
 
-    config_values = {
-        'api_key': config.get(section_name, 'api_key'),
-    }
+    config_values['api_key'] = config.get(section_name, 'api_key')
+
+    section_name = 'settings'
+    if not config.has_section(section_name):
+        logger.error("Error: The config file doesn't have an settings "
+                     "section. Check the config file format.")
+        exit()
+
+    if not config.has_option(section_name, 'max_number_of_songs'):
+        logger.error("Error: The max_number_of_songs value is missing: "
+                     "Check the config file values.")
+        exit()
+    config_values['max_number_of_songs'] = config.get(section_name, 'max_number_of_songs')
+
+    if not config.has_option(section_name, 'playlist_ordering'):
+        logger.error("Error: The playlist_ordering value is missing: "
+                     "Check the config file values.")
+        exit()
+    config_values['playlist_ordering'] = config.get(section_name, 'playlist_ordering')
 
     return config_values
 
@@ -364,6 +381,9 @@ def main():
     logger.setLevel(logging.INFO)
 
     config = load_config(logger)
+    #print(config['max_number_of_songs'])
+    #print(config['playlist_ordering'])
+
     youtube = YoutubeAdapter(logger, config['api_key'], get_script_dir())
     billboard_adapter = BillboardAdapter()
 
