@@ -208,10 +208,12 @@ class BillboardAdapter(object):  # pylint: disable=too-few-public-methods
 class PlaylistCreator(object):
     """This class contains the logic needed to retrieve Billboard charts and
     create playlists from them."""
-    def __init__(self, logger, youtube, billboard_adapter):
+    def __init__(self, logger, youtube, billboard_adapter, config):
         self.logger = logger
         self.youtube = youtube
         self.billboard = billboard_adapter
+        self.playlist_ordering = config['playlist_ordering']
+        self.max_number_of_songs = int(config['max_number_of_songs'])
 
     def add_first_video_to_playlist(self, pl_id, search_query):
         """Does a search for videos and adds the first result to the given
@@ -232,7 +234,7 @@ class PlaylistCreator(object):
         song_count = 0
         for entry in entries:
             song_count += 1
-            if song_count > 100:
+            if song_count > self.max_number_of_songs:
                 break
 
             query = entry.artist + ' ' + entry.title
@@ -254,6 +256,12 @@ class PlaylistCreator(object):
                       .strptime(chart.date, '%Y-%m-%d')
                       .strftime("%B %d, %Y"))
 
+        # Create list of max_number_of_songs length in correct order
+        if self.playlist_ordering == "ASCENDING":
+            entries = chart.entries[0:self.max_number_of_songs]
+        elif self.playlist_ordering == "DESCENDING":
+            entries = chart.entries[0:self.max_number_of_songs][::-1]
+        
         # Create a new playlist, if it doesn't already exist
         pl_title = "{0} - {1}".format(chart_name, chart_date)
         pl_description = ("This playlist contains the " + num_songs_phrase +
@@ -269,7 +277,7 @@ class PlaylistCreator(object):
             return
 
         pl_id = self.youtube.create_new_playlist(pl_title, pl_description)
-        self.add_chart_entries_to_playlist(pl_id, chart.entries)
+        self.add_chart_entries_to_playlist(pl_id, entries)
         return
 
     def create_all(self):
@@ -381,13 +389,11 @@ def main():
     logger.setLevel(logging.INFO)
 
     config = load_config(logger)
-    #print(config['max_number_of_songs'])
-    #print(config['playlist_ordering'])
-
+    
     youtube = YoutubeAdapter(logger, config['api_key'], get_script_dir())
     billboard_adapter = BillboardAdapter()
 
-    playlist_creator = PlaylistCreator(logger, youtube, billboard_adapter)
+    playlist_creator = PlaylistCreator(logger, youtube, billboard_adapter, config)
     playlist_creator.create_all()
 
 
