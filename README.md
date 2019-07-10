@@ -1,7 +1,7 @@
 Create YouTube Playlists of Music Charts
 ========================================
 
-[![License](https://img.shields.io/badge/License-GPL3-blue.svg)](COPYING)
+[![Build Status](https://travis-ci.org/aag/billboard_yt_playlist_creator.svg?branch=master)](https://travis-ci.org/aag/billboard_yt_playlist_creator) [![License](https://img.shields.io/badge/License-GPL3-blue.svg)](COPYING)
 
 This is a Python script that will download some of the current Billboard charts
 and create YouTube playlists containing videos for all the songs for the charts.
