@@ -202,7 +202,27 @@ class BillboardAdapter(object):  # pylint: disable=too-few-public-methods
     def get_chart_data(cls, chart_id, date=None):
         """Returns the chart data for a given chart and date. If no date is
         given, it returns the current week's chart."""
-        return billboard.ChartData(chart_id, date)
+        
+        chart_info = {
+              "rock-songs": ("Rock", "top 50 "),
+              "r-b-hip-hop-songs": ("R&B/Hip-Hop", "top 50 "),
+              "dance-club-play-songs": ("Dance/Club Play", "top 50 "),
+              "pop-songs": ("Pop", "top 40 "),
+              "hot-100": ("Hot 100", "")
+              }
+
+        chart = billboard.ChartData(chart_id, date)
+        if date == None:
+            chart_date = (datetime
+                      .strptime(chart.date, '%Y-%m-%d')
+                      .strftime("%B %d, %Y"))
+            setattr(chart, "date", chart_date)
+    
+        setattr(chart, "title", chart_info[chart_id][0])
+        setattr(chart, "url", "http://www.billboard.com/charts/rock-songs" + chart_id)
+        setattr(chart, "num_songs_phrase", chart_info[chart_id][1])
+
+        return chart
 
 
 class PlaylistCreator(object):
@@ -246,32 +266,31 @@ class PlaylistCreator(object):
 
         self.logger.info("\n---\n")
 
-    def create_playlist_from_chart(self, chart_id, chart_name,
-                                   num_songs_phrase, web_url):
+    def create_playlist_from_chart(self, chart_id):
         """Create and populate a new playlist with the current Billboard chart
         with the given ID"""
         # Get the songs from the Billboard web page
         chart = self.billboard.get_chart_data(chart_id)
-        chart_date = (datetime
-                      .strptime(chart.date, '%Y-%m-%d')
-                      .strftime("%B %d, %Y"))
-
+        
         # Create list of max_number_of_songs length in correct order
         if self.playlist_ordering == "ASCENDING":
             entries = chart.entries[0:self.max_number_of_songs]
         elif self.playlist_ordering == "DESCENDING":
             entries = chart.entries[0:self.max_number_of_songs][::-1]
-        
+        else:
+            entries = chart.entries[0:self.max_number_of_songs]
+
         print("\nAttempting to create {} playlist with the entries:".format(chart_id))
         for entry in entries:
             print entry.rank, entry.artist, entry.title
 
-
         # Create a new playlist, if it doesn't already exist
-        pl_title = "{0} - {1}".format(chart_name, chart_date)
-        pl_description = ("This playlist contains the " + num_songs_phrase +
-                          "songs in the " + chart_name + " Songs chart for "
-                          "the week of " + chart_date + ".  " + web_url)
+        pl_title = "{0} - {1}".format(chart.title, chart.date)
+        pl_description = ("This playlist contains the " 
+                          + chart.num_songs_phrase + "songs in the "
+                          + chart.title + " Songs chart "
+                          + "for the week of " + chart.date + ".  " 
+                          + chart.url)
 
         # Check for an existing playlist with the same title
         if self.youtube.playlist_exists_with_title(pl_title):
@@ -289,24 +308,10 @@ class PlaylistCreator(object):
         """Create all of the default playlists with this week's Billboard
         charts."""
         self.logger.info("### Script started at %s ###\n", time.strftime("%c"))
-
-        chart_info = {"rock-songs": ("Rock", "top 50 "),
-                     "r-b-hip-hop-songs": ("R&B/Hip-Hop", "top 50 "),
-                     "dance-club-play-songs": ("Dance/Club Play", "top 50 "),
-                     "pop-songs": ("Pop", "top 40 "),
-                     "hot-100": ("Hot 100", "")
-                     }
-        
+       
         for chart_id in charts_to_create:
-            chart_name = chart_info[chart_id][0]
-            num_songs_phrase = chart_info[chart_id][1]    
-            web_url = "http://www.billboard.com/charts/rock-songs" + chart_id 
-            self.create_playlist_from_chart(
-                chart_id, 
-                chart_name, 
-                num_songs_phrase,
-                web_url)
-
+            self.create_playlist_from_chart(chart_id) 
+ 
         self.logger.info("### Script finished at %s ###\n",
                          time.strftime("%c"))
 
