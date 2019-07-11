@@ -262,6 +262,11 @@ class PlaylistCreator(object):
         elif self.playlist_ordering == "DESCENDING":
             entries = chart.entries[0:self.max_number_of_songs][::-1]
         
+        print("\nAttempting to create {} playlist with the entries:".format(chart_id))
+        for entry in entries:
+            print entry.rank, entry.artist, entry.title
+
+
         # Create a new playlist, if it doesn't already exist
         pl_title = "{0} - {1}".format(chart_name, chart_date)
         pl_description = ("This playlist contains the " + num_songs_phrase +
@@ -280,50 +285,27 @@ class PlaylistCreator(object):
         self.add_chart_entries_to_playlist(pl_id, entries)
         return
 
-    def create_all(self):
+    def create_all(self, charts_to_create):
         """Create all of the default playlists with this week's Billboard
         charts."""
         self.logger.info("### Script started at %s ###\n", time.strftime("%c"))
 
-        # Billboard Rock Songs
-        self.create_playlist_from_chart(
-            "rock-songs",
-            "Rock",
-            "top 50 ",
-            "http://www.billboard.com/charts/rock-songs",
-        )
-
-        # Billboard R&B/Hip-Hop Songs
-        self.create_playlist_from_chart(
-            "r-b-hip-hop-songs",
-            "R&B/Hip-Hop",
-            "top 50 ",
-            "http://www.billboard.com/charts/r-b-hip-hop-songs",
-        )
-
-        # Billboard Dance/Club Play Songs
-        self.create_playlist_from_chart(
-            "dance-club-play-songs",
-            "Dance/Club Play",
-            "top 50 ",
-            "http://www.billboard.com/charts/dance-club-play-songs",
-        )
-
-        # Billboard Pop Songs
-        self.create_playlist_from_chart(
-            "pop-songs",
-            "Pop",
-            "top 40 ",
-            "http://www.billboard.com/charts/pop-songs",
-        )
-
-        # Billboard Hot 100
-        self.create_playlist_from_chart(
-            "hot-100",
-            "Hot 100",
-            "",
-            "http://www.billboard.com/charts/hot-100",
-        )
+        chart_info = {"rock-songs": ("Rock", "top 50 "),
+                     "r-b-hip-hop-songs": ("R&B/Hip-Hop", "top 50 "),
+                     "dance-club-play-songs": ("Dance/Club Play", "top 50 "),
+                     "pop-songs": ("Pop", "top 40 "),
+                     "hot-100": ("Hot 100", "")
+                     }
+        
+        for chart_id in charts_to_create:
+            chart_name = chart_info[chart_id][0]
+            num_songs_phrase = chart_info[chart_id][1]    
+            web_url = "http://www.billboard.com/charts/rock-songs" + chart_id 
+            self.create_playlist_from_chart(
+                chart_id, 
+                chart_name, 
+                num_songs_phrase,
+                web_url)
 
         self.logger.info("### Script finished at %s ###\n",
                          time.strftime("%c"))
@@ -402,14 +384,11 @@ def main():
 
     config = load_config(logger)
     
-    for chart_id in config['charts_to_create']:
-        print(chart_id)
-
     youtube = YoutubeAdapter(logger, config['api_key'], get_script_dir())
     billboard_adapter = BillboardAdapter()
 
     playlist_creator = PlaylistCreator(logger, youtube, billboard_adapter, config)
-    #playlist_creator.create_all()
+    playlist_creator.create_all(config['charts_to_create'])
 
 
 if __name__ == '__main__':
