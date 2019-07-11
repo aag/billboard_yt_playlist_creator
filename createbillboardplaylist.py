@@ -374,6 +374,18 @@ def load_config(logger):
         exit()
     config_values['playlist_ordering'] = config.get(section_name, 'playlist_ordering')
 
+    section_name = 'charts'
+    if not config.has_section(section_name):
+        logger.error("Error: The config file doesn't have an charts "
+                     "section. Check the config file format.")
+        exit()
+
+    if not config.has_option(section_name, 'charts_to_create'):
+        logger.error("Error: The charts_to_create value is missing: "
+                     "Check the config file values.")
+        exit()
+    config_values['charts_to_create'] = config.get(section_name, 'charts_to_create').strip('[]').translate(None, '\" ').split(',')
+
     return config_values
 
 
@@ -390,11 +402,14 @@ def main():
 
     config = load_config(logger)
     
+    for chart_id in config['charts_to_create']:
+        print(chart_id)
+
     youtube = YoutubeAdapter(logger, config['api_key'], get_script_dir())
     billboard_adapter = BillboardAdapter()
 
     playlist_creator = PlaylistCreator(logger, youtube, billboard_adapter, config)
-    playlist_creator.create_all()
+    #playlist_creator.create_all()
 
 
 if __name__ == '__main__':
