@@ -121,6 +121,15 @@ $ pipenv run pylint *.py
 $ pipenv run flake8 *.py
 ```
 
+### Testing
+
+The tests are written using the unittest module and can be run with this
+command:
+
+```
+$ pipenv run python createbillboardplaylist_test.py
+```
+
 License
 -------
 This code is free software licensed under the GPL 3. See the
