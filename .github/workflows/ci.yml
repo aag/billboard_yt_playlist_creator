@@ -19,8 +19,8 @@ jobs:
       - name: Set up pipenv
         run: pipenv install --dev
       - name: Lint with pylint
-        run: pylint createbillboardplaylist.py
+        run: pipenv run pylint *.py
       - name: Lint with flake8
-        run: flake8 createbillboardplaylist.py
+        run: pipenv run flake8 *.py
       - name: Run tests
-        run: python createbillboardplaylist_test.py
+        run: pipenv run python createbillboardplaylist_test.py
