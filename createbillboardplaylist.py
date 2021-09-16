@@ -202,16 +202,38 @@ class BillboardAdapter(object):  # pylint: disable=too-few-public-methods
     def get_chart_data(cls, chart_id, date=None):
         """Returns the chart data for a given chart and date. If no date is
         given, it returns the current week's chart."""
-        return billboard.ChartData(chart_id, date)
+        
+        chart_info = {
+              "rock-songs": ("Rock", "top 50 "),
+              "r-b-hip-hop-songs": ("R&B/Hip-Hop", "top 50 "),
+              "dance-club-play-songs": ("Dance/Club Play", "top 50 "),
+              "pop-songs": ("Pop", "top 40 "),
+              "hot-100": ("Hot 100", "")
+              }
+
+        chart = billboard.ChartData(chart_id, date)
+        if date == None:
+            chart_date = (datetime
+                      .strptime(chart.date, '%Y-%m-%d')
+                      .strftime("%B %d, %Y"))
+            setattr(chart, "date", chart_date)
+    
+        setattr(chart, "title", chart_info[chart_id][0])
+        setattr(chart, "url", "http://www.billboard.com/charts/rock-songs" + chart_id)
+        setattr(chart, "num_songs_phrase", chart_info[chart_id][1])
+
+        return chart
 
 
 class PlaylistCreator(object):
     """This class contains the logic needed to retrieve Billboard charts and
     create playlists from them."""
-    def __init__(self, logger, youtube, billboard_adapter):
+    def __init__(self, logger, youtube, billboard_adapter, config):
         self.logger = logger
         self.youtube = youtube
         self.billboard = billboard_adapter
+        self.playlist_ordering = config['playlist_ordering']
+        self.max_number_of_songs = int(config['max_number_of_songs'])
 
     def add_first_video_to_playlist(self, pl_id, search_query):
         """Does a search for videos and adds the first result to the given
@@ -232,7 +254,7 @@ class PlaylistCreator(object):
         song_count = 0
         for entry in entries:
             song_count += 1
-            if song_count > 100:
+            if song_count > self.max_number_of_songs:
                 break
 
             query = entry.artist + ' ' + entry.title
@@ -244,21 +266,31 @@ class PlaylistCreator(object):
 
         self.logger.info("\n---\n")
 
-    def create_playlist_from_chart(self, chart_id, chart_name,
-                                   num_songs_phrase, web_url):
+    def create_playlist_from_chart(self, chart_id):
         """Create and populate a new playlist with the current Billboard chart
         with the given ID"""
         # Get the songs from the Billboard web page
         chart = self.billboard.get_chart_data(chart_id)
-        chart_date = (datetime
-                      .strptime(chart.date, '%Y-%m-%d')
-                      .strftime("%B %d, %Y"))
+        
+        # Create list of max_number_of_songs length in correct order
+        if self.playlist_ordering == "ASCENDING":
+            entries = chart.entries[0:self.max_number_of_songs]
+        elif self.playlist_ordering == "DESCENDING":
+            entries = chart.entries[0:self.max_number_of_songs][::-1]
+        else:
+            entries = chart.entries[0:self.max_number_of_songs]
+
+        print("\nAttempting to create {} playlist with the entries:".format(chart_id))
+        for entry in entries:
+            print entry.rank, entry.artist, entry.title
 
         # Create a new playlist, if it doesn't already exist
-        pl_title = "{0} - {1}".format(chart_name, chart_date)
-        pl_description = ("This playlist contains the " + num_songs_phrase +
-                          "songs in the " + chart_name + " Songs chart for "
-                          "the week of " + chart_date + ".  " + web_url)
+        pl_title = "{0} - {1}".format(chart.title, chart.date)
+        pl_description = ("This playlist contains the " 
+                          + chart.num_songs_phrase + "songs in the "
+                          + chart.title + " Songs chart "
+                          + "for the week of " + chart.date + ".  " 
+                          + chart.url)
 
         # Check for an existing playlist with the same title
         if self.youtube.playlist_exists_with_title(pl_title):
@@ -269,54 +301,17 @@ class PlaylistCreator(object):
             return
 
         pl_id = self.youtube.create_new_playlist(pl_title, pl_description)
-        self.add_chart_entries_to_playlist(pl_id, chart.entries)
+        self.add_chart_entries_to_playlist(pl_id, entries)
         return
 
-    def create_all(self):
+    def create_all(self, charts_to_create):
         """Create all of the default playlists with this week's Billboard
         charts."""
         self.logger.info("### Script started at %s ###\n", time.strftime("%c"))
-
-        # Billboard Rock Songs
-        self.create_playlist_from_chart(
-            "rock-songs",
-            "Rock",
-            "top 50 ",
-            "http://www.billboard.com/charts/rock-songs",
-        )
-
-        # Billboard R&B/Hip-Hop Songs
-        self.create_playlist_from_chart(
-            "r-b-hip-hop-songs",
-            "R&B/Hip-Hop",
-            "top 50 ",
-            "http://www.billboard.com/charts/r-b-hip-hop-songs",
-        )
-
-        # Billboard Dance/Club Play Songs
-        self.create_playlist_from_chart(
-            "dance-club-play-songs",
-            "Dance/Club Play",
-            "top 50 ",
-            "http://www.billboard.com/charts/dance-club-play-songs",
-        )
-
-        # Billboard Pop Songs
-        self.create_playlist_from_chart(
-            "pop-songs",
-            "Pop",
-            "top 40 ",
-            "http://www.billboard.com/charts/pop-songs",
-        )
-
-        # Billboard Hot 100
-        self.create_playlist_from_chart(
-            "hot-100",
-            "Hot 100",
-            "",
-            "http://www.billboard.com/charts/hot-100",
-        )
-
+       
+        for chart_id in charts_to_create:
+            self.create_playlist_from_chart(chart_id) 
+ 
         self.logger.info("### Script finished at %s ###\n",
                          time.strftime("%c"))
 
@@ -324,8 +319,9 @@ class PlaylistCreator(object):
 def load_config(logger):
     """Loads config values from the settings.cfg file in the script dir"""
     config_path = get_script_dir() + 'settings.cfg'
-    section_name = 'accounts'
+    config_values = {}
 
+    # Do basic checks on the config file
     if not os.path.exists(config_path):
         logger.error("Error: No config file found. Copy settings-example.cfg "
                      "to settings.cfg and customize it.")
@@ -334,7 +330,7 @@ def load_config(logger):
     config = SafeConfigParser()
     config.read(config_path)
 
-    # Do basic checks on the config file
+    section_name = 'accounts'
     if not config.has_section(section_name):
         logger.error("Error: The config file doesn't have an accounts "
                      "section. Check the config file format.")
@@ -345,9 +341,37 @@ def load_config(logger):
                      "Check the config file values.")
         exit()
 
-    config_values = {
-        'api_key': config.get(section_name, 'api_key'),
-    }
+    config_values['api_key'] = config.get(section_name, 'api_key')
+
+    section_name = 'settings'
+    if not config.has_section(section_name):
+        logger.error("Error: The config file doesn't have an settings "
+                     "section. Check the config file format.")
+        exit()
+
+    if not config.has_option(section_name, 'max_number_of_songs'):
+        logger.error("Error: The max_number_of_songs value is missing: "
+                     "Check the config file values.")
+        exit()
+    config_values['max_number_of_songs'] = config.get(section_name, 'max_number_of_songs')
+
+    if not config.has_option(section_name, 'playlist_ordering'):
+        logger.error("Error: The playlist_ordering value is missing: "
+                     "Check the config file values.")
+        exit()
+    config_values['playlist_ordering'] = config.get(section_name, 'playlist_ordering')
+
+    section_name = 'charts'
+    if not config.has_section(section_name):
+        logger.error("Error: The config file doesn't have an charts "
+                     "section. Check the config file format.")
+        exit()
+
+    if not config.has_option(section_name, 'charts_to_create'):
+        logger.error("Error: The charts_to_create value is missing: "
+                     "Check the config file values.")
+        exit()
+    config_values['charts_to_create'] = config.get(section_name, 'charts_to_create').strip('[]').translate(None, '\" ').split(',')
 
     return config_values
 
@@ -364,11 +388,12 @@ def main():
     logger.setLevel(logging.INFO)
 
     config = load_config(logger)
+    
     youtube = YoutubeAdapter(logger, config['api_key'], get_script_dir())
     billboard_adapter = BillboardAdapter()
 
-    playlist_creator = PlaylistCreator(logger, youtube, billboard_adapter)
-    playlist_creator.create_all()
+    playlist_creator = PlaylistCreator(logger, youtube, billboard_adapter, config)
+    playlist_creator.create_all(config['charts_to_create'])
 
 
 if __name__ == '__main__':
