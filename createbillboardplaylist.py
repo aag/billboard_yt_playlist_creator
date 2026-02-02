@@ -33,15 +33,15 @@ import os.path
 import time
 
 from datetime import datetime
+from typing import TypedDict
 
 import httplib2
 
 # Google Data API
 from googleapiclient.discovery import build
-import oauth2client
 from oauth2client.file import Storage
 from oauth2client.client import flow_from_clientsecrets
-from oauth2client.tools import run_flow
+from oauth2client.tools import argparser, run_flow
 
 # billboard.py
 import billboard
@@ -57,7 +57,7 @@ class YoutubeAdapter(object):
     YOUTUBE_API_VERSION = "v3"
     REDIRECT_URI = "urn:ietf:wg:oauth:2.0:oob"
 
-    def __init__(self, logger, api_key, config_path):
+    def __init__(self, logger: logging.Logger, api_key: str, config_path: str) -> None:
         """Create an object which contains an instance of the YouTube service
         from the Google Data API library"""
         self.logger = logger
@@ -80,7 +80,7 @@ class YoutubeAdapter(object):
             parser = argparse.ArgumentParser(
                 description=__doc__,
                 formatter_class=argparse.RawDescriptionHelpFormatter,
-                parents=[oauth2client.tools.argparser],
+                parents=[argparser],
             )
             flags = parser.parse_args()
 
@@ -94,7 +94,7 @@ class YoutubeAdapter(object):
             http=credentials.authorize(httplib2.Http()),
         )
 
-    def get_video_id_for_search(self, query):
+    def get_video_id_for_search(self, query: str) -> str | None:
         """Returns the videoId of the first search result if at least one video
         was found by searching for the given query, otherwise returns
         None"""
@@ -128,7 +128,7 @@ class YoutubeAdapter(object):
 
         return None
 
-    def add_video_to_playlist(self, pl_id, video_id):
+    def add_video_to_playlist(self, pl_id: str, video_id: str) -> None:
         """Adds the given video as the last video as the last one in the given
         playlist"""
         self.logger.info("\tAdding video pl_id: %s video_id: %s", pl_id, video_id)
@@ -152,7 +152,7 @@ class YoutubeAdapter(object):
 
         self.logger.info("\tVideo added: %s", title.encode("utf-8"))
 
-    def create_new_playlist(self, title, description):
+    def create_new_playlist(self, title: str, description: str) -> str:
         """Creates a new, empty YouTube playlist with the given title and
         description"""
         playlists_insert_response = (
@@ -177,7 +177,7 @@ class YoutubeAdapter(object):
 
         return pl_id
 
-    def playlist_exists_with_title(self, title):
+    def playlist_exists_with_title(self, title: str) -> bool:
         """Returns true if there is already a playlist in the channel with the
         given name"""
         playlists = (
@@ -193,16 +193,18 @@ class YoutubeAdapter(object):
         return False
 
     @staticmethod
-    def _playlist_url_from_id(pl_id):
+    def _playlist_url_from_id(pl_id: str) -> str:
         """Returns the URL of a playlist, given its ID"""
         return "https://www.youtube.com/playlist?list={0}".format(pl_id)
 
 
-class BillboardAdapter(object):  # pylint: disable=too-few-public-methods
+class BillboardAdapter(object):
     """An adapter class for the billboard.py library."""
 
     @classmethod
-    def get_chart_data(cls, chart_id, date=None):
+    def get_chart_data(
+        cls, chart_id: str, date: str | None = None
+    ) -> billboard.ChartData:
         """Returns the chart data for a given chart and date. If no date is
         given, it returns the current week's chart."""
         return billboard.ChartData(chart_id, date)
@@ -212,12 +214,17 @@ class PlaylistCreator(object):
     """This class contains the logic needed to retrieve Billboard charts and
     create playlists from them."""
 
-    def __init__(self, logger, youtube, billboard_adapter):
+    def __init__(
+        self,
+        logger: logging.Logger,
+        youtube: YoutubeAdapter,
+        billboard_adapter: BillboardAdapter,
+    ) -> None:
         self.logger = logger
         self.youtube = youtube
         self.billboard = billboard_adapter
 
-    def add_first_video_to_playlist(self, pl_id, search_query):
+    def add_first_video_to_playlist(self, pl_id: str, search_query: str) -> None:
         """Does a search for videos and adds the first result to the given
         playlist"""
         video_id = self.youtube.get_video_id_for_search(search_query)
@@ -232,7 +239,9 @@ class PlaylistCreator(object):
 
         self.youtube.add_video_to_playlist(pl_id, video_id)
 
-    def add_chart_entries_to_playlist(self, pl_id, entries):
+    def add_chart_entries_to_playlist(
+        self, pl_id: str, entries: list[billboard.ChartEntry]
+    ) -> None:
         """Given the list of entries from a billboard.py listing, search for a
         video for each entry and add it to the given playlist"""
         song_count = 0
@@ -252,12 +261,13 @@ class PlaylistCreator(object):
         self.logger.info("\n---\n")
 
     def create_playlist_from_chart(
-        self, chart_id, chart_name, num_songs_phrase, web_url
-    ):
+        self, chart_id: str, chart_name: str, num_songs_phrase: str, web_url: str
+    ) -> None:
         """Create and populate a new playlist with the current Billboard chart
         with the given ID"""
         # Get the songs from the Billboard web page
         chart = self.billboard.get_chart_data(chart_id)
+        assert chart.date is not None, "Chart date must not be None"
         chart_date = datetime.strptime(chart.date, "%Y-%m-%d").strftime("%B %d, %Y")
 
         # Create a new playlist, if it doesn't already exist
@@ -285,7 +295,7 @@ class PlaylistCreator(object):
         self.add_chart_entries_to_playlist(pl_id, chart.entries)
         return
 
-    def create_all(self):
+    def create_all(self) -> None:
         """Create all of the default playlists with this week's Billboard
         charts."""
         self.logger.info("### Script started at %s ###\n", time.strftime("%c"))
@@ -333,7 +343,11 @@ class PlaylistCreator(object):
         self.logger.info("### Script finished at %s ###\n", time.strftime("%c"))
 
 
-def load_config(logger):
+class ScriptConfig(TypedDict):
+    api_key: str
+
+
+def load_config(logger: logging.Logger) -> ScriptConfig:
     """Loads config values from the settings.cfg file in the script dir"""
     config_path = get_script_dir() + "settings.cfg"
     section_name = "accounts"
@@ -363,19 +377,19 @@ def load_config(logger):
         )
         exit()
 
-    config_values = {
+    config_values: ScriptConfig = {
         "api_key": config.get(section_name, "api_key"),
     }
 
     return config_values
 
 
-def get_script_dir():
+def get_script_dir() -> str:
     """Returns the absolute path to the script directory"""
     return os.path.dirname(os.path.realpath(__file__)) + "/"
 
 
-def main():
+def main() -> None:
     """Script main function"""
     logging.basicConfig(format="%(message)s")
     logger = logging.getLogger("createbillboardplaylist")

@@ -109,13 +109,18 @@ $ uv run ruff format
 $ uv run ruff check
 ```
 
+The code includes type hints, which can be checked with [ty](https://docs.astral.sh/ty/):
+```
+$ uv run ty check
+```
+
 ### Testing
 
 The tests are written using the unittest module and can be run with this
 command:
 
 ```
-$ pipenv run python createbillboardplaylist_test.py
+$ uv run createbillboardplaylist_test.py
 ```
 
 License

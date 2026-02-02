@@ -33,6 +33,9 @@ jobs:
 
       - name: Run lint check
         run: uv run ruff check
+        
+      - name: Run type checker
+        run: uv run ty check
 
       - name: Run tests
         run: uv run createbillboardplaylist_test.py
