@@ -27,7 +27,7 @@ http://www.youtube.com/user/GimmeThatHotPopMusic
 
 Dependencies
 ------------
-This script depends on Python 2.7 and these Python packages:
+This script depends on Python 3.10+ and these Python packages:
 - [Google API v3 Client Library for Python](https://developers.google.com/api-client-library/python/)
 - [billboard.py](https://github.com/guoguo12/billboard-charts)
 - [oauth2client](https://github.com/googleapis/oauth2client)
@@ -36,12 +36,7 @@ Usage
 -----
 1. Clone the git repository.
 
-2. Install the Python dependencies with [pipenv](https://docs.pipenv.org/).
-    Run this command within the root directory of the repository:
-
-    ```sh
-    $ pipenv install
-    ```
+2. Install [uv](https://docs.astral.sh/uv/).
 
 3. Create a new project in the
     [Google Developer Console](https://console.developers.google.com/)
@@ -71,7 +66,7 @@ Usage
     created in step #5. Then run:
 
     ```sh
-    $ pipenv run python createbillboardplaylist.py --noauth_local_webserver
+    $ uv run createbillboardplaylist.py --noauth_local_webserver
     ```
 
 8. Before the first time you run the script, you will need to create a YouTube
@@ -90,7 +85,7 @@ Usage
     arguments:
 
     ```sh
-    $ pipenv run python createbillboardplaylist.py
+    $ uv run createbillboardplaylist.py
     ```
 
 Troubleshooting
@@ -105,20 +100,13 @@ Development
 
 ### Coding Style
 
-The code in the script is written to follow
-[the PEP8 style guide](https://www.python.org/dev/peps/pep-0008/).
-Both pylint and flake8 are used to check the coding style. You can install
-both of them with pipenv if you include development packages:
+The formatting of the code in the script is checked and formatted with
+[ruff](https://docs.astral.sh/ruff/).
 
+You can format and check the code with uv:
 ```
-$ pipenv install --dev
-```
-
-Then you can run them both with pipenv:
-
-```
-$ pipenv run pylint *.py
-$ pipenv run flake8 *.py
+$ uv run ruff format
+$ uv run ruff check
 ```
 
 ### Testing

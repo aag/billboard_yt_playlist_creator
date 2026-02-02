@@ -11,7 +11,7 @@ An example of what the script creates can be seen here:
 http://www.youtube.com/user/GimmeThatHotPopMusic
 """
 
-# Copyright 2011-2018 Adam Goforth
+# Copyright 2011-2026 Adam Goforth
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -27,10 +27,11 @@ http://www.youtube.com/user/GimmeThatHotPopMusic
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import argparse
+import configparser
 import logging
 import os.path
 import time
-from ConfigParser import SafeConfigParser
+
 from datetime import datetime
 
 import httplib2
@@ -50,6 +51,7 @@ class YoutubeAdapter(object):
     """An adapter class for the Youtube service. This class presents the API
     that our script logic needs and handles the interaction with the Youtube
     servers."""
+
     YOUTUBE_READ_WRITE_SCOPE = "https://www.googleapis.com/auth/youtube"
     YOUTUBE_API_SERVICE_NAME = "youtube"
     YOUTUBE_API_VERSION = "v3"
@@ -61,16 +63,14 @@ class YoutubeAdapter(object):
         self.logger = logger
 
         client_secrets_file = config_path + "client_secrets.json"
-        missing_secrets_message = "Error: {0} is missing".format(
-            client_secrets_file
-        )
+        missing_secrets_message = "Error: {0} is missing".format(client_secrets_file)
 
         # Do OAuth2 authentication
         flow = flow_from_clientsecrets(
             client_secrets_file,
             message=missing_secrets_message,
             scope=YoutubeAdapter.YOUTUBE_READ_WRITE_SCOPE,
-            redirect_uri=YoutubeAdapter.REDIRECT_URI
+            redirect_uri=YoutubeAdapter.REDIRECT_URI,
         )
 
         storage = Storage(config_path + "oauth2.json")
@@ -91,32 +91,36 @@ class YoutubeAdapter(object):
             YoutubeAdapter.YOUTUBE_API_SERVICE_NAME,
             YoutubeAdapter.YOUTUBE_API_VERSION,
             developerKey=api_key,
-            http=credentials.authorize(httplib2.Http())
+            http=credentials.authorize(httplib2.Http()),
         )
 
     def get_video_id_for_search(self, query):
         """Returns the videoId of the first search result if at least one video
-           was found by searching for the given query, otherwise returns
-           None"""
+        was found by searching for the given query, otherwise returns
+        None"""
 
-        search_response = self.service.search().list(
-            q=query,
-            part="id",
-            maxResults=3,
-            safeSearch="none",
-            type="video",
-            fields="items"
-        ).execute()
+        search_response = (
+            self.service.search()
+            .list(
+                q=query,
+                part="id",
+                maxResults=3,
+                safeSearch="none",
+                type="video",
+                fields="items",
+            )
+            .execute()
+        )
 
-        items = search_response.get('items', [])
+        items = search_response.get("items", [])
         if not items:
             return None
 
         for item in items:
             # The "type" parameter doesn't always work for some reason, so we
             # have to check each item for its type.
-            if item['id']['kind'] == 'youtube#video':
-                return item['id']['videoId']
+            if item["id"]["kind"] == "youtube#video":
+                return item["id"]["videoId"]
             else:
                 self.logger.warning(
                     "\tResult is not a video, continuing to next result"
@@ -127,45 +131,44 @@ class YoutubeAdapter(object):
     def add_video_to_playlist(self, pl_id, video_id):
         """Adds the given video as the last video as the last one in the given
         playlist"""
-        self.logger.info("\tAdding video pl_id: %s video_id: %s", pl_id,
-                         video_id)
+        self.logger.info("\tAdding video pl_id: %s video_id: %s", pl_id, video_id)
 
-        video_insert_response = self.service.playlistItems().insert(
-            part="snippet",
-            body=dict(
-                snippet=dict(
-                    playlistId=pl_id,
-                    resourceId=dict(
-                        kind="youtube#video",
-                        videoId=video_id
+        video_insert_response = (
+            self.service.playlistItems()
+            .insert(
+                part="snippet",
+                body=dict(
+                    snippet=dict(
+                        playlistId=pl_id,
+                        resourceId=dict(kind="youtube#video", videoId=video_id),
                     )
-                )
-            ),
-            fields="snippet"
-        ).execute()
+                ),
+                fields="snippet",
+            )
+            .execute()
+        )
 
-        title = video_insert_response['snippet']['title']
+        title = video_insert_response["snippet"]["title"]
 
-        self.logger.info('\tVideo added: %s', title.encode('utf-8'))
+        self.logger.info("\tVideo added: %s", title.encode("utf-8"))
 
     def create_new_playlist(self, title, description):
         """Creates a new, empty YouTube playlist with the given title and
         description"""
-        playlists_insert_response = self.service.playlists().insert(
-            part="snippet,status",
-            body=dict(
-                snippet=dict(
-                    title=title,
-                    description=description
+        playlists_insert_response = (
+            self.service.playlists()
+            .insert(
+                part="snippet,status",
+                body=dict(
+                    snippet=dict(title=title, description=description),
+                    status=dict(privacyStatus="public"),
                 ),
-                status=dict(
-                    privacyStatus="public"
-                )
-            ),
-            fields="id"
-        ).execute()
+                fields="id",
+            )
+            .execute()
+        )
 
-        pl_id = playlists_insert_response['id']
+        pl_id = playlists_insert_response["id"]
         pl_url = self._playlist_url_from_id(pl_id)
 
         self.logger.info("New playlist added: %s", title)
@@ -177,15 +180,14 @@ class YoutubeAdapter(object):
     def playlist_exists_with_title(self, title):
         """Returns true if there is already a playlist in the channel with the
         given name"""
-        playlists = self.service.playlists().list(
-            part="snippet",
-            mine=True,
-            maxResults=10,
-            fields="items"
-        ).execute()
+        playlists = (
+            self.service.playlists()
+            .list(part="snippet", mine=True, maxResults=10, fields="items")
+            .execute()
+        )
 
-        for playlist in playlists['items']:
-            if playlist['snippet']['title'] == title:
+        for playlist in playlists["items"]:
+            if playlist["snippet"]["title"] == title:
                 return True
 
         return False
@@ -198,6 +200,7 @@ class YoutubeAdapter(object):
 
 class BillboardAdapter(object):  # pylint: disable=too-few-public-methods
     """An adapter class for the billboard.py library."""
+
     @classmethod
     def get_chart_data(cls, chart_id, date=None):
         """Returns the chart data for a given chart and date. If no date is
@@ -208,6 +211,7 @@ class BillboardAdapter(object):  # pylint: disable=too-few-public-methods
 class PlaylistCreator(object):
     """This class contains the logic needed to retrieve Billboard charts and
     create playlists from them."""
+
     def __init__(self, logger, youtube, billboard_adapter):
         self.logger = logger
         self.youtube = youtube
@@ -220,8 +224,10 @@ class PlaylistCreator(object):
 
         # No search results were found, so log a message and return
         if video_id is None:
-            self.logger.warning("No search results found for '%s'. "
-                                "Moving on to the next song.", search_query)
+            self.logger.warning(
+                "No search results found for '%s'. Moving on to the next song.",
+                search_query,
+            )
             return
 
         self.youtube.add_video_to_playlist(pl_id, video_id)
@@ -235,37 +241,44 @@ class PlaylistCreator(object):
             if song_count > 100:
                 break
 
-            query = entry.artist + ' ' + entry.title
-            song_info = ('#' + str(entry.rank) + ': ' + entry.artist + ' - ' +
-                         entry.title)
+            query = entry.artist + " " + entry.title
+            song_info = (
+                "#" + str(entry.rank) + ": " + entry.artist + " - " + entry.title
+            )
 
-            self.logger.info('Adding %s', song_info)
+            self.logger.info("Adding %s", song_info)
             self.add_first_video_to_playlist(pl_id, query)
 
         self.logger.info("\n---\n")
 
-    def create_playlist_from_chart(self, chart_id, chart_name,
-                                   num_songs_phrase, web_url):
+    def create_playlist_from_chart(
+        self, chart_id, chart_name, num_songs_phrase, web_url
+    ):
         """Create and populate a new playlist with the current Billboard chart
         with the given ID"""
         # Get the songs from the Billboard web page
         chart = self.billboard.get_chart_data(chart_id)
-        chart_date = (datetime
-                      .strptime(chart.date, '%Y-%m-%d')
-                      .strftime("%B %d, %Y"))
+        chart_date = datetime.strptime(chart.date, "%Y-%m-%d").strftime("%B %d, %Y")
 
         # Create a new playlist, if it doesn't already exist
         pl_title = "{0} - {1}".format(chart_name, chart_date)
-        pl_description = ("This playlist contains the " + num_songs_phrase +
-                          "songs in the " + chart_name + " Songs chart for "
-                          "the week of " + chart_date + ".  " + web_url)
+        pl_description = (
+            "This playlist contains the "
+            + num_songs_phrase
+            + "songs in the "
+            + chart_name
+            + " Songs chart for "
+            "the week of " + chart_date + ".  " + web_url
+        )
 
         # Check for an existing playlist with the same title
         if self.youtube.playlist_exists_with_title(pl_title):
-            self.logger.warning("Playlist already exists with title '%s'. "
-                                "Delete it manually and re-run the script to "
-                                "recreate it.",
-                                pl_title)
+            self.logger.warning(
+                "Playlist already exists with title '%s'. "
+                "Delete it manually and re-run the script to "
+                "recreate it.",
+                pl_title,
+            )
             return
 
         pl_id = self.youtube.create_new_playlist(pl_title, pl_description)
@@ -317,36 +330,41 @@ class PlaylistCreator(object):
             "http://www.billboard.com/charts/hot-100",
         )
 
-        self.logger.info("### Script finished at %s ###\n",
-                         time.strftime("%c"))
+        self.logger.info("### Script finished at %s ###\n", time.strftime("%c"))
 
 
 def load_config(logger):
     """Loads config values from the settings.cfg file in the script dir"""
-    config_path = get_script_dir() + 'settings.cfg'
-    section_name = 'accounts'
+    config_path = get_script_dir() + "settings.cfg"
+    section_name = "accounts"
 
     if not os.path.exists(config_path):
-        logger.error("Error: No config file found. Copy settings-example.cfg "
-                     "to settings.cfg and customize it.")
+        logger.error(
+            "Error: No config file found. Copy settings-example.cfg "
+            "to settings.cfg and customize it."
+        )
         exit()
 
-    config = SafeConfigParser()
+    config = configparser.ConfigParser()
     config.read(config_path)
 
     # Do basic checks on the config file
     if not config.has_section(section_name):
-        logger.error("Error: The config file doesn't have an accounts "
-                     "section. Check the config file format.")
+        logger.error(
+            "Error: The config file doesn't have an accounts "
+            "section. Check the config file format."
+        )
         exit()
 
-    if not config.has_option(section_name, 'api_key'):
-        logger.error("Error: No developer key found in the config file. "
-                     "Check the config file values.")
+    if not config.has_option(section_name, "api_key"):
+        logger.error(
+            "Error: No developer key found in the config file. "
+            "Check the config file values."
+        )
         exit()
 
     config_values = {
-        'api_key': config.get(section_name, 'api_key'),
+        "api_key": config.get(section_name, "api_key"),
     }
 
     return config_values
@@ -354,22 +372,22 @@ def load_config(logger):
 
 def get_script_dir():
     """Returns the absolute path to the script directory"""
-    return os.path.dirname(os.path.realpath(__file__)) + '/'
+    return os.path.dirname(os.path.realpath(__file__)) + "/"
 
 
 def main():
     """Script main function"""
-    logging.basicConfig(format='%(message)s')
-    logger = logging.getLogger('createbillboardplaylist')
+    logging.basicConfig(format="%(message)s")
+    logger = logging.getLogger("createbillboardplaylist")
     logger.setLevel(logging.INFO)
 
     config = load_config(logger)
-    youtube = YoutubeAdapter(logger, config['api_key'], get_script_dir())
+    youtube = YoutubeAdapter(logger, config["api_key"], get_script_dir())
     billboard_adapter = BillboardAdapter()
 
     playlist_creator = PlaylistCreator(logger, youtube, billboard_adapter)
     playlist_creator.create_all()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
