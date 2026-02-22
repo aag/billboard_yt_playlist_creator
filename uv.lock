@@ -39,6 +39,7 @@ dependencies = [
     { name = "billboard-py" },
     { name = "google-api-python-client" },
     { name = "oauth2client" },
+    { name = "youtube-search" },
 ]
 
 [package.dev-dependencies]
@@ -53,6 +54,7 @@ requires-dist = [
     { name = "billboard-py", specifier = ">=7.1.0" },
     { name = "google-api-python-client", specifier = ">=2.188.0" },
     { name = "oauth2client", specifier = ">=4.1.3" },
+    { name = "youtube-search", specifier = ">=2.2.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -605,4 +607,16 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/c7/24/5f1b3bdffd70275f6661c76461e25f024d5a38a46f04aaca912426a2b1d3/urllib3-2.6.3.tar.gz", hash = "sha256:1b62b6884944a57dbe321509ab94fd4d3b307075e0c2eae991ac71ee15ad38ed", size = 435556, upload-time = "2026-01-07T16:24:43.925Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/39/08/aaaad47bc4e9dc8c725e68f9d04865dbcb2052843ff09c97b08904852d84/urllib3-2.6.3-py3-none-any.whl", hash = "sha256:bf272323e553dfb2e87d9bfd225ca7b0f467b919d7bbd355436d3fd37cb0acd4", size = 131584, upload-time = "2026-01-07T16:24:42.685Z" },
+]
+
+[[package]]
+name = "youtube-search"
+version = "2.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/5f/13/153d6841d0a9850e956f2f99987185c5b8477cc36fbabca24c4acf0321ff/youtube_search-2.2.0.tar.gz", hash = "sha256:5398a7cd65d9b75a8bac27ef689ec044abab3cbfa1f20d19db0277659ac70d98", size = 3313, upload-time = "2025-12-06T15:52:32.393Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/0f/3d/7285e86e6390801fb177763a9cf1d81762487f98b3872ab5e1080bb82602/youtube_search-2.2.0-py3-none-any.whl", hash = "sha256:bdffbb5b22d7a7c85a88e6eeb6b00c5b5dbd29ea7b95139d21b8b8dab2ca5871", size = 3554, upload-time = "2025-12-06T15:52:31.217Z" },
 ]

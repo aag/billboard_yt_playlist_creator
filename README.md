@@ -31,6 +31,7 @@ This script depends on Python 3.10+ and these Python packages:
 - [Google API v3 Client Library for Python](https://developers.google.com/api-client-library/python/)
 - [billboard.py](https://github.com/guoguo12/billboard-charts)
 - [oauth2client](https://github.com/googleapis/oauth2client)
+- [youtube-search](https://github.com/joetats/youtube_search)
 
 Usage
 -----
@@ -62,31 +63,34 @@ Usage
     your browser. Save the file with the name `client_secrets.json` in the
     root directory of your clone of the git repository.
 
-7. Copy `settings-example.cfg` to `settings.cfg` and fill in the API key you
-    created in step #5. Then run:
-
-    ```sh
-    $ uv run createbillboardplaylist.py --noauth_local_webserver
-    ```
-
-8. Before the first time you run the script, you will need to create a YouTube
+7. Before the first time you run the script, you will need to create a YouTube
     channel. Go to any YouTube video and click the "Add to playlist" icon 
     below the video. This will prompt you to create your channel.
 
+8. Add a test user. Go to [the Audience page](https://console.cloud.google.com/auth/audience)
+    for your project in the Google Cloud Console. Under "Test users" click
+    "+ Add users" and enter the email address of the Google account that owns
+    the YouTube channel you created.
+
 9. The first time you run the script, you will have to authenticate the
-    application in a web browser. Open the URL that the script outputs,
-    approve the application for the YouTube Account in which you want to
-    create the playlists, and enter the verification code on the command line.
+    application in a web browser. The script will open a web browser, and you
+    will have to approve the application for the YouTube Account in which you
+    want to create the playlists, and enter the verification code on the
+    command line.
+    If running the script normally doesn't prompt for authentication, try this:
+    ```
+    uv run createbillboardplaylist.py --noauth_local_webserver
+    ```
     This will create a file, `oauth2.json`, which must be kept in the root
     of the git repository as long as you want to upload playlists to this
     account.
-
-10. In subsequent runs of the script, you can run it without any command line
-    arguments:
-
+    Run the script with uv:
     ```sh
     $ uv run createbillboardplaylist.py
     ```
+
+10. In subsequent runs of the script you should not have to authenticate again.
+
 
 Troubleshooting
 ---------------

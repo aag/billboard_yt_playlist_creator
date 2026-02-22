@@ -36,6 +36,10 @@ from datetime import datetime
 from typing import TypedDict
 
 import httplib2
+import sqlite3
+
+# youtube-search
+from youtube_search import YoutubeSearch
 
 # Google Data API
 from googleapiclient.discovery import build
@@ -55,7 +59,7 @@ class YoutubeAdapter(object):
     YOUTUBE_READ_WRITE_SCOPE = "https://www.googleapis.com/auth/youtube"
     YOUTUBE_API_SERVICE_NAME = "youtube"
     YOUTUBE_API_VERSION = "v3"
-    REDIRECT_URI = "urn:ietf:wg:oauth:2.0:oob"
+    REDIRECT_URI = "http://127.0.0.1:8989"
 
     def __init__(self, logger: logging.Logger, api_key: str, config_path: str) -> None:
         """Create an object which contains an instance of the YouTube service
@@ -98,59 +102,54 @@ class YoutubeAdapter(object):
         """Returns the videoId of the first search result if at least one video
         was found by searching for the given query, otherwise returns
         None"""
-
-        search_response = (
-            self.service.search()
-            .list(
-                q=query,
-                part="id",
-                maxResults=3,
-                safeSearch="none",
-                type="video",
-                fields="items",
-            )
-            .execute()
-        )
-
-        items = search_response.get("items", [])
-        if not items:
+        search_result = YoutubeSearch(query, max_results=1).to_dict()
+        if len(search_result) == 0:
             return None
 
-        for item in items:
-            # The "type" parameter doesn't always work for some reason, so we
-            # have to check each item for its type.
-            if item["id"]["kind"] == "youtube#video":
-                return item["id"]["videoId"]
-            else:
-                self.logger.warning(
-                    "\tResult is not a video, continuing to next result"
-                )
-
-        return None
+        return search_result[0]["id"]
 
     def add_video_to_playlist(self, pl_id: str, video_id: str) -> None:
         """Adds the given video as the last video as the last one in the given
         playlist"""
         self.logger.info("\tAdding video pl_id: %s video_id: %s", pl_id, video_id)
 
-        video_insert_response = (
-            self.service.playlistItems()
-            .insert(
-                part="snippet",
-                body=dict(
-                    snippet=dict(
-                        playlistId=pl_id,
-                        resourceId=dict(kind="youtube#video", videoId=video_id),
+        max_retries = 5
+        retry_count = 0
+        backoff_time = 1  # In seconds
+
+        while retry_count < max_retries:
+            try:
+                video_insert_response = (
+                    self.service.playlistItems()
+                    .insert(
+                        part="snippet",
+                        body=dict(
+                            snippet=dict(
+                                playlistId=pl_id,
+                                resourceId=dict(kind="youtube#video", videoId=video_id),
+                            )
+                        ),
+                        fields="snippet",
                     )
-                ),
-                fields="snippet",
-            )
-            .execute()
-        )
+                    .execute()
+                )
 
-        title = video_insert_response["snippet"]["title"]
+                title = video_insert_response["snippet"]["title"]
 
-        self.logger.info("\tVideo added: %s", title.encode("utf-8"))
+                self.logger.info("\tVideo added: %s", title.encode("utf-8"))
+                return
+
+            except Exception as e:
+                if e.resp.status == 409 and 'SERVICE_UNAVAILABLE' in str(e):
+                    retry_count += 1
+                    print(f"Attempt {retry_count} failed. Retrying in {backoff_time} seconds...")
+                    time.sleep(backoff_time)
+                    backoff_time *= 2  # Exponential backoff
+                else:
+                    raise
+        raise Exception("Failed to add the song to the playlist after multiple retries.")
+
+
 
     def create_new_playlist(self, title: str, description: str) -> str:
         """Creates a new, empty YouTube playlist with the given title and
