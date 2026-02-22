@@ -36,7 +36,6 @@ from datetime import datetime
 from typing import TypedDict
 
 import httplib2
-import sqlite3
 
 # youtube-search
 from youtube_search import YoutubeSearch
@@ -139,17 +138,16 @@ class YoutubeAdapter(object):
                 self.logger.info("\tVideo added: %s", title.encode("utf-8"))
                 return
 
-            except Exception as e:
-                if e.resp.status == 409 and 'SERVICE_UNAVAILABLE' in str(e):
-                    retry_count += 1
-                    print(f"Attempt {retry_count} failed. Retrying in {backoff_time} seconds...")
-                    time.sleep(backoff_time)
-                    backoff_time *= 2  # Exponential backoff
-                else:
-                    raise
-        raise Exception("Failed to add the song to the playlist after multiple retries.")
-
-
+            except Exception:
+                retry_count += 1
+                print(
+                    f"Attempt {retry_count} failed. Retrying in {backoff_time} seconds..."
+                )
+                time.sleep(backoff_time)
+                backoff_time *= 2  # Exponential backoff
+        raise Exception(
+            "Failed to add the song to the playlist after multiple retries."
+        )
 
     def create_new_playlist(self, title: str, description: str) -> str:
         """Creates a new, empty YouTube playlist with the given title and
