@@ -17,7 +17,7 @@ The script creates playlists for these charts:
 
 - Hot 100
 - Pop
-- Dance/Club Play
+- Dance/Electronic
 - R&B/Hip-Hop
 - Rock
 
