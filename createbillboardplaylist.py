@@ -313,12 +313,12 @@ class PlaylistCreator(object):
             "http://www.billboard.com/charts/r-b-hip-hop-songs",
         )
 
-        # Billboard Dance/Club Play Songs
+        # Billboard Dance/Electronic Songs
         self.create_playlist_from_chart(
-            "dance-club-play-songs",
-            "Dance/Club Play",
-            "top 50 ",
-            "http://www.billboard.com/charts/dance-club-play-songs",
+            "dance-electronic-songs",
+            "Dance/Electronic Songs",
+            "top 25",
+            "http://www.billboard.com/charts/dance-electronic-songs",
         )
 
         # Billboard Pop Songs
