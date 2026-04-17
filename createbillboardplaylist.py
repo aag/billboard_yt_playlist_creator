@@ -66,7 +66,7 @@ class YoutubeAdapter(object):
         self.logger = logger
 
         client_secrets_file = config_path + "client_secrets.json"
-        missing_secrets_message = "Error: {0} is missing".format(client_secrets_file)
+        missing_secrets_message = f"Error: {client_secrets_file} is missing"
 
         # Do OAuth2 authentication
         flow = flow_from_clientsecrets(
@@ -192,7 +192,7 @@ class YoutubeAdapter(object):
     @staticmethod
     def _playlist_url_from_id(pl_id: str) -> str:
         """Returns the URL of a playlist, given its ID"""
-        return "https://www.youtube.com/playlist?list={0}".format(pl_id)
+        return f"https://www.youtube.com/playlist?list={pl_id}"
 
 
 class BillboardAdapter(object):
@@ -247,10 +247,8 @@ class PlaylistCreator(object):
             if song_count > 100:
                 break
 
-            query = entry.artist + " " + entry.title
-            song_info = (
-                "#" + str(entry.rank) + ": " + entry.artist + " - " + entry.title
-            )
+            query = f"{entry.artist} {entry.title}"
+            song_info = f"#{entry.rank}: {entry.artist} - {entry.title}"
 
             self.logger.info("Adding %s", song_info)
             self.add_first_video_to_playlist(pl_id, query)
@@ -268,14 +266,11 @@ class PlaylistCreator(object):
         chart_date = datetime.strptime(chart.date, "%Y-%m-%d").strftime("%B %d, %Y")
 
         # Create a new playlist, if it doesn't already exist
-        pl_title = "{0} - {1}".format(chart_name, chart_date)
+        pl_title = f"{chart_name} - {chart_date}"
         pl_description = (
-            "This playlist contains the "
-            + num_songs_phrase
-            + "songs in the "
-            + chart_name
-            + " Songs chart for "
-            "the week of " + chart_date + ".  " + web_url
+            f"This playlist contains the {num_songs_phrase}songs in the "
+            f"{chart_name} Songs chart for "
+            f"the week of {chart_date}.  {web_url}"
         )
 
         # Check for an existing playlist with the same title
