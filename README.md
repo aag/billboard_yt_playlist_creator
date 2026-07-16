@@ -23,7 +23,7 @@ The script creates playlists for these charts:
 
 An example of what the script creates can be seen here:
 
-http://www.youtube.com/user/GimmeThatHotPopMusic
+https://www.youtube.com/@songsmcsongyface/playlists
 
 Dependencies
 ------------
