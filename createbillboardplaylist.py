@@ -141,7 +141,7 @@ class YoutubeAdapter(object):
 
                 title = video_insert_response["snippet"]["title"]
 
-                self.logger.info("\tVideo added: %s", title))
+                self.logger.info("\tVideo added: %s", title)
                 return
 
             except Exception:
