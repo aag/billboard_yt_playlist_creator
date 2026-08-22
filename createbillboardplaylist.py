@@ -30,10 +30,14 @@ import argparse
 import configparser
 import logging
 import os.path
+import re
+import sqlite3
+import sys
 import time
 
 from datetime import datetime
 from typing import TypedDict
+from urllib.parse import parse_qs, urlparse
 
 import httplib2
 
@@ -85,7 +89,9 @@ class YoutubeAdapter(object):
                 formatter_class=argparse.RawDescriptionHelpFormatter,
                 parents=[argparser],
             )
-            flags = parser.parse_args()
+            # Use parse_known_args because sys.argv may contain the
+            # subcommand (e.g. "create"), which this parser doesn't know about
+            flags, _ = parser.parse_known_args()
 
             credentials = run_flow(flow, storage, flags)
 
@@ -135,7 +141,7 @@ class YoutubeAdapter(object):
 
                 title = video_insert_response["snippet"]["title"]
 
-                self.logger.info("\tVideo added: %s", title.encode("utf-8"))
+                self.logger.info("\tVideo added: %s", title))
                 return
 
             except Exception:
@@ -207,6 +213,103 @@ class BillboardAdapter(object):
         return billboard.ChartData(chart_id, date)
 
 
+class VideoCache(object):
+    """Stores mappings from songs to YouTube video IDs in a local SQLite
+    database. It acts as a cache so that songs which have already been searched
+    for don't need to be searched again, and it allows the video used for a
+    song to be overridden manually."""
+
+    def __init__(self, db_path: str) -> None:
+        self.conn = sqlite3.connect(db_path)
+        self._create_table()
+
+    def _create_table(self) -> None:
+        """Creates the mappings table if it doesn't exist"""
+        self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS mappings ("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+            "artist TEXT NOT NULL, title TEXT NOT NULL, video_id TEXT NOT NULL,"
+            " UNIQUE (artist, title))"
+        )
+
+    def close(self) -> None:
+        """Closes the database connection"""
+        self.conn.close()
+
+    def get_video_id(self, artist: str, title: str) -> str | None:
+        """Returns the stored video ID for the given song, or None if no
+        mapping is stored"""
+        row = self.conn.execute(
+            "SELECT video_id FROM mappings WHERE artist = ? AND title = ?",
+            (artist, title),
+        ).fetchone()
+        return row[0] if row else None
+
+    def set_mapping(self, artist: str, title: str, video_id: str) -> None:
+        """Stores the given video ID for the given song, replacing any existing
+        mapping"""
+        self.conn.execute(
+            "INSERT OR REPLACE INTO mappings (artist, title, video_id)"
+            " VALUES (?, ?, ?)",
+            (artist, title, video_id),
+        )
+        self.conn.commit()
+
+    def remove_mapping(self, id: int) -> bool:
+        """Removes the stored mapping with the given ID. Returns True if a
+        mapping was removed"""
+        cursor = self.conn.execute("DELETE FROM mappings WHERE id = ?", (id,))
+        self.conn.commit()
+        return cursor.rowcount > 0
+
+    def list_mappings(self) -> list[tuple[int, str, str, str]]:
+        """Returns all stored mappings"""
+        rows = self.conn.execute(
+            "SELECT id, artist, title, video_id FROM mappings ORDER BY id"
+        ).fetchall()
+        return [(id, artist, title, video_id) for id, artist, title, video_id in rows]
+
+    def search(self, value: str) -> list[tuple[int, str, str, str]]:
+        """Returns all stored (ID, artist, title, video ID) quadruples where
+        the artist or title contains the given text"""
+        pattern = f"%{value}%"
+        rows = self.conn.execute(
+            "SELECT id, artist, title, video_id FROM mappings"
+            " WHERE artist LIKE ? OR title LIKE ? ORDER BY id",
+            (pattern, pattern),
+        ).fetchall()
+        return [(id, artist, title, video_id) for id, artist, title, video_id in rows]
+
+    @staticmethod
+    def extract_video_id(value: str) -> str | None:
+        """Returns the YouTube video ID from a raw video ID or a YouTube URL.
+        Returns None if no video ID could be determined"""
+        value = value.strip()
+        parsed = urlparse(value)
+
+        # A slash means this isn't a raw video ID, so treat it as a scheme-less
+        # URL (e.g. youtu.be/ID) by adding a scheme and parsing again
+        if not parsed.netloc and "/" in value:
+            parsed = urlparse("http://" + value)
+
+        if "youtu.be" in parsed.netloc and parsed.path:
+            return VideoCache._validate_video_id(parsed.path.lstrip("/"))
+
+        query_params = parse_qs(parsed.query)
+        if "v" in query_params:
+            return VideoCache._validate_video_id(query_params["v"][0])
+
+        return VideoCache._validate_video_id(value)
+
+    @staticmethod
+    def _validate_video_id(video_id: str) -> str | None:
+        """Returns the given string if it looks like a valid YouTube video ID,
+        otherwise returns None"""
+        if re.fullmatch(r"[A-Za-z0-9_-]{11}", video_id):
+            return video_id
+        return None
+
+
 class PlaylistCreator(object):
     """This class contains the logic needed to retrieve Billboard charts and
     create playlists from them."""
@@ -216,23 +319,32 @@ class PlaylistCreator(object):
         logger: logging.Logger,
         youtube: YoutubeAdapter,
         billboard_adapter: BillboardAdapter,
+        mappings: VideoCache,
     ) -> None:
         self.logger = logger
         self.youtube = youtube
         self.billboard = billboard_adapter
+        self.mappings = mappings
 
-    def add_first_video_to_playlist(self, pl_id: str, search_query: str) -> None:
-        """Does a search for videos and adds the first result to the given
-        playlist"""
-        video_id = self.youtube.get_video_id_for_search(search_query)
+    def add_video_to_playlist(self, pl_id: str, artist: str, title: str) -> None:
+        """Adds a video for the given song to the given playlist. If a mapping
+        is stored for the song it is used; otherwise a search is done and the
+        first result is mapped and added"""
+        video_id = self.mappings.get_video_id(artist, title)
 
-        # No search results were found, so log a message and return
         if video_id is None:
-            self.logger.warning(
-                "No search results found for '%s'. Moving on to the next song.",
-                search_query,
-            )
-            return
+            query = f"{artist} - {title}"
+            video_id = self.youtube.get_video_id_for_search(query)
+
+            # No search results were found, so log a message and return
+            if video_id is None:
+                self.logger.warning(
+                    "No cache entry or search results found for '%s'. Moving on to the next song.",
+                    query,
+                )
+                return
+
+            self.mappings.set_mapping(artist, title, video_id)
 
         self.youtube.add_video_to_playlist(pl_id, video_id)
 
@@ -247,11 +359,10 @@ class PlaylistCreator(object):
             if song_count > 100:
                 break
 
-            query = f"{entry.artist} {entry.title}"
             song_info = f"#{entry.rank}: {entry.artist} - {entry.title}"
 
             self.logger.info("Adding %s", song_info)
-            self.add_first_video_to_playlist(pl_id, query)
+            self.add_video_to_playlist(pl_id, entry.artist, entry.title)
 
         self.logger.info("\n---\n")
 
@@ -285,7 +396,6 @@ class PlaylistCreator(object):
 
         pl_id = self.youtube.create_new_playlist(pl_title, pl_description)
         self.add_chart_entries_to_playlist(pl_id, chart.entries)
-        return
 
     def create_all(self) -> None:
         """Create all of the default playlists with this week's Billboard
@@ -349,7 +459,7 @@ def load_config(logger: logging.Logger) -> ScriptConfig:
             "Error: No config file found. Copy settings-example.cfg "
             "to settings.cfg and customize it."
         )
-        exit()
+        sys.exit(1)
 
     config = configparser.ConfigParser()
     config.read(config_path)
@@ -360,14 +470,14 @@ def load_config(logger: logging.Logger) -> ScriptConfig:
             "Error: The config file doesn't have an accounts "
             "section. Check the config file format."
         )
-        exit()
+        sys.exit(1)
 
     if not config.has_option(section_name, "api_key"):
         logger.error(
             "Error: No developer key found in the config file. "
             "Check the config file values."
         )
-        exit()
+        sys.exit(1)
 
     config_values: ScriptConfig = {
         "api_key": config.get(section_name, "api_key"),
@@ -381,18 +491,100 @@ def get_script_dir() -> str:
     return os.path.dirname(os.path.realpath(__file__)) + "/"
 
 
+def parse_args() -> argparse.Namespace:
+    """Parses the command line arguments"""
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    subparsers.add_parser("create", help="Create this week's Billboard chart playlists")
+
+    add_parser = subparsers.add_parser(
+        "cache-set",
+        help="Store the video to use for a song in the cache",
+    )
+    add_parser.add_argument("artist", help="The artist name")
+    add_parser.add_argument("title", help="The song title")
+    add_parser.add_argument("video_id_or_url", help="A YouTube video ID or URL")
+
+    remove_parser = subparsers.add_parser(
+        "cache-remove",
+        help="Remove a stored cache entry so the song is searched for again",
+    )
+    remove_parser.add_argument(
+        "id", type=int, help="The ID of the stored cache entry to remove"
+    )
+
+    subparsers.add_parser("cache-list", help="List all stored video cache entries")
+
+    search_parser = subparsers.add_parser(
+        "cache-search",
+        help="Search stored video cache entries by artist or title text",
+    )
+    search_parser.add_argument("value", help="Text to look for in artist and title")
+
+    # Unknown arguments are ignored here because they may be meant for the
+    # OAuth2 flow (e.g. --noauth_local_webserver)
+    return parser.parse_known_args()[0]
+
+
 def main() -> None:
     """Script main function"""
     logging.basicConfig(format="%(message)s")
     logger = logging.getLogger("createbillboardplaylist")
     logger.setLevel(logging.INFO)
 
-    config = load_config(logger)
-    youtube = YoutubeAdapter(logger, config["api_key"], get_script_dir())
-    billboard_adapter = BillboardAdapter()
+    args = parse_args()
+    video_cache = VideoCache(get_script_dir() + "cache.db")
 
-    playlist_creator = PlaylistCreator(logger, youtube, billboard_adapter)
-    playlist_creator.create_all()
+    if args.command == "create":
+        config = load_config(logger)
+        youtube = YoutubeAdapter(logger, config["api_key"], get_script_dir())
+        billboard_adapter = BillboardAdapter()
+
+        playlist_creator = PlaylistCreator(
+            logger, youtube, billboard_adapter, video_cache
+        )
+        playlist_creator.create_all()
+        return
+
+    if args.command == "cache-set":
+        video_id = VideoCache.extract_video_id(args.video_id_or_url)
+        song_info = f"{args.artist} - {args.title}"
+        if video_id is None:
+            logger.error(
+                "Error: '%s' is not a valid YouTube video ID or URL.",
+                args.video_id_or_url,
+            )
+            sys.exit(1)
+        else:
+            video_cache.set_mapping(args.artist, args.title, video_id)
+            logger.info("Stored cache entry for '%s': %s", song_info, video_id)
+
+    elif args.command == "cache-remove":
+        if video_cache.remove_mapping(args.id):
+            logger.info("Removed cache entry with ID %s.", args.id)
+        else:
+            logger.error("No stored cache entry found with ID %s.", args.id)
+            sys.exit(1)
+
+    elif args.command == "cache-list":
+        entries = video_cache.list_mappings()
+        if not entries:
+            print("No cache entries exist.")
+        for id, artist, title, video_id in entries:
+            print(f"{id}: {artist} - {title}: {video_id}")
+
+    elif args.command == "cache-search":
+        results = video_cache.search(args.value)
+        if not results:
+            print(f"No cache entries match '{args.value}'.")
+        for id, artist, title, video_id in results:
+            print(f"{id}: {artist} - {title}: {video_id}")
+
+    video_cache.close()
 
 
 if __name__ == "__main__":

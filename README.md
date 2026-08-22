@@ -1,17 +1,16 @@
 Create YouTube Playlists of Music Charts
 ========================================
 
-[![Build Status](https://github.com/aag/billboard_yt_playlist_creator/actions/workflows/ci.yml/badge.svg)](https://github.com/aag/billboard_yt_playlist_creator/actions) [![License](https://img.shields.io/badge/License-GPL3-blue.svg)](COPYING)
+[![Build Status](https://github.com/aag/billboard_yt_playlist_creator/actions/workflows/ci.yml/badge.svg)](https://github.com/aag/billboard_yt_playlist_creator/actions) [![License](https://img.shields.io/badge/License-GPL3-blue.svg)](LICENSE.md)
 
 This is a Python script that will download some of the current Billboard charts
 and create YouTube playlists containing videos for all the songs for the charts.
 If it is run regularly, it will create new playlists each week for the
 current Billboard charts.
 
-When run, the script downloads the current charts from RSS feeds on the
-Billboard website.  For each chart, it searches YouTube for a video of each
-song and adds the first result to a dated playlist of the chart for the current
-week.
+When run, the script downloads the current charts from the Billboard website.
+For each chart, it searches YouTube for a video of each song and adds the first
+result to a dated playlist of the chart for the current week.
 
 The script creates playlists for these charts:
 
@@ -79,25 +78,59 @@ Usage
     command line.
     If running the script normally doesn't prompt for authentication, try this:
     ```
-    uv run createbillboardplaylist.py --noauth_local_webserver
+    uv run createbillboardplaylist.py create --noauth_local_webserver
     ```
     This will create a file, `oauth2.json`, which must be kept in the root
     of the git repository as long as you want to upload playlists to this
     account.
     Run the script with uv:
     ```sh
-    $ uv run createbillboardplaylist.py
+    $ uv run createbillboardplaylist.py create
     ```
 
 10. In subsequent runs of the script you should not have to authenticate again.
+
+Overriding Videos
+-----------------
+The first search result isn't always the best video for a song. The script
+stores the video it finds for each song in a local SQLite database
+(`video_mappings.db`), so a song is only searched for once and the stored
+mapping is used on all later runs. You can override which video is used for a
+song with these commands:
+
+Store a mapping (a YouTube video ID or URL):
+```sh
+$ uv run createbillboardplaylist.py cache-set "Artist" "Song Title" dQw4w9WgXcQ
+```
+
+List the stored mappings:
+```sh
+$ uv run createbillboardplaylist.py cache-list
+```
+
+Search the stored mappings by artist or title text:
+```sh
+$ uv run createbillboardplaylist.py cache-search "queen"
+```
+
+Remove a mapping by its ID (see `cache-list` or `cache-search`), so the video
+is searched for again on the next run:
+```sh
+$ uv run createbillboardplaylist.py cache-remove 123
+```
+
+The artist and title must be given exactly as they appear in the Billboard
+chart.
 
 
 Troubleshooting
 ---------------
 If the script was working, but you start getting HttpError 404 responses with
 the message "Channel not found.", you may have to re-authorize the application.
-Do this by deleting the `oauth2.json` file and running the script
-with `--noauth_local_webserver`.
+Do this by deleting the `oauth2.json` file and running the script like this:
+```
+uv run createbillboardplaylist.py create --noauth_local_webserver
+```
 
 Development
 -----------

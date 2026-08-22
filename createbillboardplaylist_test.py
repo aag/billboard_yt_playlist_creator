@@ -19,48 +19,84 @@ from typing import Any, cast
 import logging
 import mock
 
-from createbillboardplaylist import PlaylistCreator, YoutubeAdapter, BillboardAdapter
+from createbillboardplaylist import (
+    VideoCache,
+    PlaylistCreator,
+    YoutubeAdapter,
+    BillboardAdapter,
+)
 
 # Prevent log messages from being printed
 logging.getLogger().setLevel(logging.CRITICAL)
 
 
 class CreatePlaylistTestCase(unittest.TestCase):
-    def test_add_first_video_to_playlist(self) -> None:
+    def setUp(self) -> None:
+        self.video_cache = VideoCache(":memory:")
+
+    def tearDown(self) -> None:
+        self.video_cache.close()
+
+    def _create_playlist_creator(self) -> tuple[PlaylistCreator, mock.Mock]:
+        billboard_mock = mock.Mock()
+        youtube_mock = mock.Mock()
+
+        playlist_creator = PlaylistCreator(
+            logging.getLogger(),
+            cast(YoutubeAdapter, youtube_mock),
+            cast(BillboardAdapter, billboard_mock),
+            self.video_cache,
+        )
+
+        return playlist_creator, youtube_mock
+
+    def test_add_video_to_playlist(self) -> None:
         video_id = "test-video-id"
         playlist_id = "test-playlist"
-        search_query = "test artist - test song title"
+        artist = "test artist"
+        title = "test song title"
+        search_query = f"{artist} - {title}"
 
-        billboard_mock = mock.Mock()
-        youtube_mock = mock.Mock()
+        playlist_creator, youtube_mock = self._create_playlist_creator()
         youtube_mock.get_video_id_for_search.return_value = video_id
-
-        playlist_creator = PlaylistCreator(
-            logging.getLogger(),
-            cast(YoutubeAdapter, youtube_mock),
-            cast(BillboardAdapter, billboard_mock),
-        )
-        playlist_creator.add_first_video_to_playlist(playlist_id, search_query)
+        playlist_creator.add_video_to_playlist(playlist_id, artist, title)
 
         youtube_mock.get_video_id_for_search.assert_called_with(search_query)
+        self.assertEqual(self.video_cache.get_video_id(artist, title), video_id)
         youtube_mock.add_video_to_playlist.assert_called_with(playlist_id, video_id)
 
-    def test_add_first_video_to_playlist_none_found(self) -> None:
+    def test_add_video_to_playlist_uses_cached_mapping(self) -> None:
+        stored_video_id = "stored-video-id"
         playlist_id = "test-playlist"
-        search_query = "test artist - test song title"
+        artist = "test artist"
+        title = "test song title"
 
-        billboard_mock = mock.Mock()
-        youtube_mock = mock.Mock()
-        youtube_mock.get_video_id_for_search.return_value = None
+        self.video_cache.set_mapping(artist, title, stored_video_id)
 
-        playlist_creator = PlaylistCreator(
-            logging.getLogger(),
-            cast(YoutubeAdapter, youtube_mock),
-            cast(BillboardAdapter, billboard_mock),
+        playlist_creator, youtube_mock = self._create_playlist_creator()
+        playlist_creator.add_video_to_playlist(playlist_id, artist, title)
+
+        youtube_mock.get_video_id_for_search.assert_not_called()
+        self.assertEqual(
+            self.video_cache.list_mappings(),
+            [(1, artist, title, stored_video_id)],
         )
-        playlist_creator.add_first_video_to_playlist(playlist_id, search_query)
+        youtube_mock.add_video_to_playlist.assert_called_with(
+            playlist_id, stored_video_id
+        )
+
+    def test_add_video_to_playlist_none_found(self) -> None:
+        playlist_id = "test-playlist"
+        artist = "test artist"
+        title = "test song title"
+        search_query = f"{artist} - {title}"
+
+        playlist_creator, youtube_mock = self._create_playlist_creator()
+        youtube_mock.get_video_id_for_search.return_value = None
+        playlist_creator.add_video_to_playlist(playlist_id, artist, title)
 
         youtube_mock.get_video_id_for_search.assert_called_with(search_query)
+        self.assertIsNone(self.video_cache.get_video_id(artist, title))
         youtube_mock.add_video_to_playlist.assert_not_called()
 
     def test_add_chart_entries_to_playlist_single_entry(self) -> None:
@@ -68,7 +104,7 @@ class CreatePlaylistTestCase(unittest.TestCase):
         playlist_id = "test-playlist"
         artist = "test artist"
         title = "test song"
-        search_query = "{} {}".format(artist, title)
+        search_query = f"{artist} - {title}"
 
         entry = mock.Mock()
         entry.artist = artist
@@ -77,19 +113,14 @@ class CreatePlaylistTestCase(unittest.TestCase):
 
         entries: list[Any] = [entry]
 
-        billboard_mock = mock.Mock()
-        youtube_mock = mock.Mock()
+        playlist_creator, youtube_mock = self._create_playlist_creator()
         youtube_mock.get_video_id_for_search.return_value = video_id
-
-        playlist_creator = PlaylistCreator(
-            logging.getLogger(),
-            cast(YoutubeAdapter, youtube_mock),
-            cast(BillboardAdapter, billboard_mock),
-        )
         playlist_creator.add_chart_entries_to_playlist(playlist_id, entries)
 
         youtube_mock.get_video_id_for_search.assert_called_with(search_query)
+        self.assertEqual(self.video_cache.get_video_id(artist, title), video_id)
         youtube_mock.add_video_to_playlist.assert_called_with(playlist_id, video_id)
+
 
 class YoutubeAdapterTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -240,7 +271,7 @@ class YoutubeAdapterTests(unittest.TestCase):
 
     def test_playlist_url_from_id_generates_correct_format(self) -> None:
         pl_id = "PL123456"
-        expected_url = "https://www.youtube.com/playlist?list={0}".format(pl_id)
+        expected_url = f"https://www.youtube.com/playlist?list={pl_id}"
 
         result = YoutubeAdapter._playlist_url_from_id(pl_id)
 
@@ -261,6 +292,153 @@ class BillboardAdapterTests(unittest.TestCase):
 
         mock_chart.assert_called_with("hot-100", "2024-01-01")
         self.assertEqual(result, mock_chart.return_value)
+
+
+class VideoCacheTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.store = VideoCache(":memory:")
+
+    def tearDown(self) -> None:
+        self.store.close()
+
+    def test_get_video_id_returns_none_when_not_stored(self) -> None:
+        result = self.store.get_video_id("test artist", "test song")
+
+        self.assertIsNone(result)
+
+    def test_set_and_get_mapping(self) -> None:
+        self.store.set_mapping("test artist", "test song", "video123456")
+
+        result = self.store.get_video_id("test artist", "test song")
+
+        self.assertEqual(result, "video123456")
+
+    def test_get_video_id_returns_none_for_different_artist_or_title(self) -> None:
+        self.store.set_mapping("test artist", "test song", "video123456")
+
+        self.assertIsNone(self.store.get_video_id("other artist", "test song"))
+        self.assertIsNone(self.store.get_video_id("test artist", "other song"))
+
+    def test_set_mapping_replaces_existing_mapping(self) -> None:
+        self.store.set_mapping("test artist", "test song", "oldid123456")
+        self.store.set_mapping("test artist", "test song", "newid123456")
+
+        result = self.store.get_video_id("test artist", "test song")
+
+        self.assertEqual(result, "newid123456")
+        self.assertEqual(len(self.store.list_mappings()), 1)
+
+    def test_remove_mapping_removes_stored_mapping(self) -> None:
+        self.store.set_mapping("test artist", "test song", "video123456")
+        mapping_id = self.store.list_mappings()[0][0]
+
+        result = self.store.remove_mapping(mapping_id)
+
+        self.assertTrue(result)
+        self.assertIsNone(self.store.get_video_id("test artist", "test song"))
+
+    def test_remove_mapping_returns_false_when_not_stored(self) -> None:
+        result = self.store.remove_mapping(12345)
+
+        self.assertFalse(result)
+
+    def test_list_mappings_returns_all_stored_mappings(self) -> None:
+        self.store.set_mapping("artist one", "song one", "video123456")
+        self.store.set_mapping("artist two", "song two", "video654321")
+
+        result = self.store.list_mappings()
+
+        self.assertEqual(
+            result,
+            [
+                (1, "artist one", "song one", "video123456"),
+                (2, "artist two", "song two", "video654321"),
+            ],
+        )
+
+    def test_search_finds_match_in_artist(self) -> None:
+        self.store.set_mapping("Queen", "Bohemian Rhapsody", "video123456")
+        self.store.set_mapping("Beatles", "Hey Jude", "video654321")
+
+        result = self.store.search("queen")
+
+        self.assertEqual(result, [(1, "Queen", "Bohemian Rhapsody", "video123456")])
+
+    def test_search_finds_match_in_title(self) -> None:
+        self.store.set_mapping("Queen", "Bohemian Rhapsody", "video123456")
+        self.store.set_mapping("Beatles", "Hey Jude", "video654321")
+
+        result = self.store.search("jude")
+
+        self.assertEqual(result, [(2, "Beatles", "Hey Jude", "video654321")])
+
+    def test_search_returns_multiple_matches(self) -> None:
+        self.store.set_mapping("Queen", "Bohemian Rhapsody", "video123456")
+        self.store.set_mapping("Queen", "Don't Stop Me Now", "video654321")
+
+        result = self.store.search("queen")
+
+        self.assertEqual(
+            result,
+            [
+                (1, "Queen", "Bohemian Rhapsody", "video123456"),
+                (2, "Queen", "Don't Stop Me Now", "video654321"),
+            ],
+        )
+
+    def test_search_returns_empty_list_when_no_match(self) -> None:
+        self.store.set_mapping("Queen", "Bohemian Rhapsody", "video123456")
+
+        result = self.store.search("nobody")
+
+        self.assertEqual(result, [])
+
+
+class VideoCacheExtractVideoIdTests(unittest.TestCase):
+    def test_extract_video_id_from_raw_id(self) -> None:
+        result = VideoCache.extract_video_id("dQw4w9WgXcQ")
+
+        self.assertEqual(result, "dQw4w9WgXcQ")
+
+    def test_extract_video_id_from_watch_url(self) -> None:
+        url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+
+        result = VideoCache.extract_video_id(url)
+
+        self.assertEqual(result, "dQw4w9WgXcQ")
+
+    def test_extract_video_id_from_watch_url_with_extra_params(self) -> None:
+        url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=10s"
+
+        result = VideoCache.extract_video_id(url)
+
+        self.assertEqual(result, "dQw4w9WgXcQ")
+
+    def test_extract_video_id_from_short_url(self) -> None:
+        url = "https://youtu.be/dQw4w9WgXcQ"
+
+        result = VideoCache.extract_video_id(url)
+
+        self.assertEqual(result, "dQw4w9WgXcQ")
+
+    def test_extract_video_id_from_scheme_less_short_url(self) -> None:
+        url = "youtu.be/dQw4w9WgXcQ"
+
+        result = VideoCache.extract_video_id(url)
+
+        self.assertEqual(result, "dQw4w9WgXcQ")
+
+    def test_extract_video_id_from_scheme_less_watch_url(self) -> None:
+        url = "www.youtube.com/watch?v=dQw4w9WgXcQ"
+
+        result = VideoCache.extract_video_id(url)
+
+        self.assertEqual(result, "dQw4w9WgXcQ")
+
+    def test_extract_video_id_returns_none_for_invalid_value(self) -> None:
+        result = VideoCache.extract_video_id("not a video id or url")
+
+        self.assertIsNone(result)
 
 
 if __name__ == "__main__":
