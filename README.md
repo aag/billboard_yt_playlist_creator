@@ -93,12 +93,11 @@ Usage
 Overriding Videos
 -----------------
 The first search result isn't always the best video for a song. The script
-stores the video it finds for each song in a local SQLite database
-(`video_mappings.db`), so a song is only searched for once and the stored
-mapping is used on all later runs. You can override which video is used for a
-song with these commands:
+stores the video it finds for each song in a local SQLite database (`cache.db`),
+so a song is only searched for once and the cached mapping is used on all later
+runs. You can override which video is used for a song with these commands:
 
-Store a mapping (a YouTube video ID or URL):
+Store a mapping to a YouTube video ID or URL:
 ```sh
 $ uv run createbillboardplaylist.py cache-set "Artist" "Song Title" dQw4w9WgXcQ
 ```
@@ -118,9 +117,6 @@ is searched for again on the next run:
 ```sh
 $ uv run createbillboardplaylist.py cache-remove 123
 ```
-
-The artist and title must be given exactly as they appear in the Billboard
-chart.
 
 
 Troubleshooting
