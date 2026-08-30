@@ -8,7 +8,7 @@ charts. If it is run regularly, it will create new playlists each week for the
 new Billboard charts.
 
 An example of what the script creates can be seen here:
-http://www.youtube.com/user/GimmeThatHotPopMusic
+https://www.youtube.com/@songsmcsongyface/playlists
 """
 
 # Copyright 2011-2026 Adam Goforth
@@ -28,27 +28,28 @@ http://www.youtube.com/user/GimmeThatHotPopMusic
 
 import argparse
 import configparser
+import json
 import logging
 import os.path
 import re
 import sqlite3
 import sys
 import time
+from pathlib import Path
 
 from datetime import datetime
 from typing import TypedDict
 from urllib.parse import parse_qs, urlparse
 
-import httplib2
-
 # youtube-search
 from youtube_search import YoutubeSearch
 
 # Google Data API
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
-from oauth2client.file import Storage
-from oauth2client.client import flow_from_clientsecrets
-from oauth2client.tools import argparser, run_flow
+from googleapiclient.errors import HttpError
 
 # billboard.py
 import billboard
@@ -59,49 +60,74 @@ class YoutubeAdapter(object):
     that our script logic needs and handles the interaction with the Youtube
     servers."""
 
-    YOUTUBE_READ_WRITE_SCOPE = "https://www.googleapis.com/auth/youtube"
+    YOUTUBE_READ_WRITE_SCOPE = "https://www.googleapis.com/auth/youtube.force-ssl"
     YOUTUBE_API_SERVICE_NAME = "youtube"
     YOUTUBE_API_VERSION = "v3"
-    REDIRECT_URI = "http://127.0.0.1:8989"
 
     def __init__(self, logger: logging.Logger, api_key: str, config_path: str) -> None:
         """Create an object which contains an instance of the YouTube service
         from the Google Data API library"""
         self.logger = logger
 
-        client_secrets_file = config_path + "client_secrets.json"
-        missing_secrets_message = f"Error: {client_secrets_file} is missing"
-
-        # Do OAuth2 authentication
-        flow = flow_from_clientsecrets(
-            client_secrets_file,
-            message=missing_secrets_message,
-            scope=YoutubeAdapter.YOUTUBE_READ_WRITE_SCOPE,
-            redirect_uri=YoutubeAdapter.REDIRECT_URI,
-        )
-
-        storage = Storage(config_path + "oauth2.json")
-        credentials = storage.get()
-
-        if credentials is None or credentials.invalid:
-            parser = argparse.ArgumentParser(
-                description=__doc__,
-                formatter_class=argparse.RawDescriptionHelpFormatter,
-                parents=[argparser],
-            )
-            # Use parse_known_args because sys.argv may contain the
-            # subcommand (e.g. "create"), which this parser doesn't know about
-            flags, _ = parser.parse_known_args()
-
-            credentials = run_flow(flow, storage, flags)
+        credentials = self._get_credentials(config_path)
 
         # Create the service to use throughout the script
         self.service = build(
             YoutubeAdapter.YOUTUBE_API_SERVICE_NAME,
             YoutubeAdapter.YOUTUBE_API_VERSION,
             developerKey=api_key,
-            http=credentials.authorize(httplib2.Http()),
+            credentials=credentials,
         )
+
+    def _get_credentials(self, config_path: str) -> Credentials:
+        """Returns OAuth2 credentials for the YouTube API. If a token file
+        exists it is loaded and refreshed as needed; otherwise an interactive
+        OAuth flow is run in a web browser and the resulting credentials are
+        saved to the token file."""
+        client_secrets_file = Path(config_path) / "client_secret.json"
+        token_file = Path(config_path) / "token.json"
+
+        credentials: Credentials | None = None
+        if token_file.exists():
+            credentials = Credentials.from_authorized_user_file(
+                str(token_file), [YoutubeAdapter.YOUTUBE_READ_WRITE_SCOPE]
+            )
+
+        if credentials is not None and (
+            credentials.valid or self._refresh_credentials(credentials)
+        ):
+            return credentials
+
+        # No usable token, so run the interactive OAuth flow in a web browser
+        flow = InstalledAppFlow.from_client_secrets_file(
+            str(client_secrets_file),
+            [YoutubeAdapter.YOUTUBE_READ_WRITE_SCOPE],
+        )
+        new_credentials: Credentials = flow.run_local_server()
+
+        # Persist the credentials, including the refresh token, so that
+        # future runs don't need user interaction
+        token_file.write_text(new_credentials.to_json())
+        os.chmod(token_file, 0o600)
+
+        return new_credentials
+
+    @staticmethod
+    def _refresh_credentials(credentials: Credentials) -> bool:
+        """Tries to refresh an expired access token using the stored refresh
+        token. Returns True if a valid access token was obtained without user
+        interaction."""
+        if not credentials.refresh_token:
+            return False
+
+        try:
+            credentials.refresh(Request())
+        except Exception:
+            # The refresh token may have been revoked or invalidated, so the
+            # interactive flow has to be run again
+            return False
+
+        return True
 
     def get_video_id_for_search(self, query: str) -> str | None:
         """Returns the videoId of the first search result if at least one video
@@ -144,7 +170,9 @@ class YoutubeAdapter(object):
                 self.logger.info("\tVideo added: %s", title)
                 return
 
-            except Exception:
+            except Exception as e:
+                self._exit_if_quota_exceeded(e)
+
                 retry_count += 1
                 print(
                     f"Attempt {retry_count} failed. Retrying in {backoff_time} seconds..."
@@ -158,18 +186,22 @@ class YoutubeAdapter(object):
     def create_new_playlist(self, title: str, description: str) -> str:
         """Creates a new, empty YouTube playlist with the given title and
         description"""
-        playlists_insert_response = (
-            self.service.playlists()
-            .insert(
-                part="snippet,status",
-                body=dict(
-                    snippet=dict(title=title, description=description),
-                    status=dict(privacyStatus="public"),
-                ),
-                fields="id",
+        try:
+            playlists_insert_response = (
+                self.service.playlists()
+                .insert(
+                    part="snippet,status",
+                    body=dict(
+                        snippet=dict(title=title, description=description),
+                        status=dict(privacyStatus="public"),
+                    ),
+                    fields="id",
+                )
+                .execute()
             )
-            .execute()
-        )
+        except HttpError as e:
+            self._exit_if_quota_exceeded(e)
+            raise
 
         pl_id = playlists_insert_response["id"]
         pl_url = self._playlist_url_from_id(pl_id)
@@ -183,17 +215,45 @@ class YoutubeAdapter(object):
     def playlist_exists_with_title(self, title: str) -> bool:
         """Returns true if there is already a playlist in the channel with the
         given name"""
-        playlists = (
-            self.service.playlists()
-            .list(part="snippet", mine=True, maxResults=10, fields="items")
-            .execute()
-        )
+        try:
+            playlists = (
+                self.service.playlists()
+                .list(part="snippet", mine=True, maxResults=10, fields="items")
+                .execute()
+            )
+        except HttpError as e:
+            self._exit_if_quota_exceeded(e)
+            raise
 
         for playlist in playlists["items"]:
             if playlist["snippet"]["title"] == title:
                 return True
 
         return False
+
+    def _exit_if_quota_exceeded(self, error: Exception) -> None:
+        """If the given API error is a quota exceeded response, log a helpful
+        message and exit the script. Otherwise does nothing."""
+        if not (isinstance(error, HttpError) and self._is_quota_exceeded_error(error)):
+            return
+
+        self.logger.error("The YouTube API quota has been exceeded. Exiting.")
+        sys.exit(1)
+
+    @staticmethod
+    def _is_quota_exceeded_error(error: HttpError) -> bool:
+        """Returns True if the given API error is a 403 response with the
+        quotaExceeded reason"""
+        try:
+            details = json.loads(error.content.decode("utf-8"))
+        except (ValueError, UnicodeDecodeError):
+            return False
+
+        errors = details.get("error", {}).get("errors", [])
+        return any(
+            isinstance(err, dict) and err.get("reason") == "quotaExceeded"
+            for err in errors
+        )
 
     @staticmethod
     def _playlist_url_from_id(pl_id: str) -> str:
@@ -525,9 +585,7 @@ def parse_args() -> argparse.Namespace:
     )
     search_parser.add_argument("value", help="Text to look for in artist and title")
 
-    # Unknown arguments are ignored here because they may be meant for the
-    # OAuth2 flow (e.g. --noauth_local_webserver)
-    return parser.parse_known_args()[0]
+    return parser.parse_args()
 
 
 def main() -> None:

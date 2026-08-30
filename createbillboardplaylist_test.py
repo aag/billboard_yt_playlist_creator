@@ -13,11 +13,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import json
+import logging
 import unittest
 from typing import Any, cast
 
-import logging
 import mock
+
+from googleapiclient.errors import HttpError
 
 from createbillboardplaylist import (
     VideoCache,
@@ -203,6 +206,38 @@ class YoutubeAdapterTests(unittest.TestCase):
                 self.assertIn("Failed to add the song", str(context.exception))
                 self.assertEqual(mock_execute.call_count, 5)
 
+    def test_add_video_to_playlist_exits_on_quota_exceeded(self) -> None:
+        with mock.patch(
+            "createbillboardplaylist.YoutubeAdapter.__init__", return_value=None
+        ):
+            with mock.patch("time.sleep") as mock_sleep:
+                adapter = YoutubeAdapter(None, "fake-key", "/path/")  # type: ignore
+                adapter.logger = self.logger
+                adapter.service = mock.Mock()
+
+                quota_error = self._http_error(
+                    403,
+                    {
+                        "error": {
+                            "code": 403,
+                            "message": "The request cannot be completed because you have exceeded your quota.",
+                            "errors": [
+                                {"domain": "youtube.quota", "reason": "quotaExceeded"}
+                            ],
+                        }
+                    },
+                )
+
+                adapter.service.playlistItems().insert().execute.side_effect = (
+                    quota_error
+                )
+
+                with self.assertRaises(SystemExit):
+                    adapter.add_video_to_playlist("pl-id", "vid-id")
+
+                # A quota error should exit immediately without retrying
+                mock_sleep.assert_not_called()
+
     def test_create_new_playlist_returns_id_and_logs_info(self) -> None:
         with mock.patch(
             "createbillboardplaylist.YoutubeAdapter.__init__", return_value=None
@@ -220,6 +255,31 @@ class YoutubeAdapterTests(unittest.TestCase):
 
             self.assertEqual(result, expected_id)
             adapter.service.playlists().insert().execute.assert_called_once()
+
+    def test_create_new_playlist_exits_on_quota_exceeded(self) -> None:
+        with mock.patch(
+            "createbillboardplaylist.YoutubeAdapter.__init__", return_value=None
+        ):
+            adapter = YoutubeAdapter(None, "fake-key", "/path/")  # type: ignore
+            adapter.logger = self.logger
+            adapter.service = mock.Mock()
+
+            quota_error = self._http_error(
+                403,
+                {
+                    "error": {
+                        "code": 403,
+                        "message": "The request cannot be completed because you have exceeded your quota.",
+                        "errors": [
+                            {"domain": "youtube.quota", "reason": "quotaExceeded"}
+                        ],
+                    }
+                },
+            )
+            adapter.service.playlists().insert().execute.side_effect = quota_error
+
+            with self.assertRaises(SystemExit):
+                adapter.create_new_playlist("Test Playlist", "Test Description")
 
     def test_playlist_exists_with_title_returns_true_when_found(self) -> None:
         with mock.patch(
@@ -268,6 +328,61 @@ class YoutubeAdapterTests(unittest.TestCase):
             result = adapter.playlist_exists_with_title("Target Playlist")
 
             self.assertFalse(result)
+
+    def _http_error(self, status: int, error_body: dict) -> HttpError:
+        resp = mock.Mock(status=status)
+        content = json.dumps(error_body).encode("utf-8")
+        return HttpError(resp, content, uri="https://youtube.googleapis.com/")
+
+    def test_playlist_exists_with_title_exits_on_quota_exceeded(self) -> None:
+        with mock.patch(
+            "createbillboardplaylist.YoutubeAdapter.__init__", return_value=None
+        ):
+            adapter = YoutubeAdapter(None, "fake-key", "/path/")  # type: ignore
+            adapter.logger = self.logger
+            adapter.service = mock.Mock()
+
+            quota_error = self._http_error(
+                403,
+                {
+                    "error": {
+                        "code": 403,
+                        "message": "The request cannot be completed because you have exceeded your quota.",
+                        "errors": [
+                            {"domain": "youtube.quota", "reason": "quotaExceeded"}
+                        ],
+                    }
+                },
+            )
+            adapter.service.playlists().list().execute.side_effect = quota_error
+
+            with self.assertRaises(SystemExit):
+                adapter.playlist_exists_with_title("Target Playlist")
+
+    def test_playlist_exists_with_title_reraises_other_http_errors(self) -> None:
+        with mock.patch(
+            "createbillboardplaylist.YoutubeAdapter.__init__", return_value=None
+        ):
+            adapter = YoutubeAdapter(None, "fake-key", "/path/")  # type: ignore
+            adapter.logger = self.logger
+            adapter.service = mock.Mock()
+
+            other_error = self._http_error(
+                403,
+                {
+                    "error": {
+                        "code": 403,
+                        "message": "Access not configured.",
+                        "errors": [
+                            {"domain": "access", "reason": "accessNotConfigured"}
+                        ],
+                    }
+                },
+            )
+            adapter.service.playlists().list().execute.side_effect = other_error
+
+            with self.assertRaises(HttpError):
+                adapter.playlist_exists_with_title("Target Playlist")
 
     def test_playlist_url_from_id_generates_correct_format(self) -> None:
         pl_id = "PL123456"

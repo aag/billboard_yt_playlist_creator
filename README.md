@@ -28,8 +28,8 @@ Dependencies
 ------------
 This script depends on Python 3.10+ and these Python packages:
 - [Google API v3 Client Library for Python](https://developers.google.com/api-client-library/python/)
+- [google-auth-oauthlib](https://github.com/googleapis/google-auth-library-python-oauthlib)
 - [billboard.py](https://github.com/guoguo12/billboard-charts)
-- [oauth2client](https://github.com/googleapis/oauth2client)
 - [youtube-search](https://github.com/joetats/youtube_search)
 
 Usage
@@ -51,16 +51,19 @@ Usage
 
 5. Create an API key. Go to the Credentials tab in the
     [Google Developer Console](https://console.developers.google.com/)
-    and click "Create credentials". Click "API key" link.
+    and click "Create credentials". Click "API key" link. Copy
+    settings-example.cfg to settings.cfg and replace the `api_key` value with
+    the newly-generated key.
 
-6. Create a new client ID. Still on the Credentials tab of the Google Developer
-    console, click the "Create credentials" dropdown. Select "OAuth client ID"
-    from the list and select the application type "Other". Click the
-    "Create" button. Click "OK" in the modal dialog that appears. The new
-    client ID should appear on the Credentials page. Click the "Download JSON"
-    button for your new client ID. A download of the JSON key will start in
-    your browser. Save the file with the name `client_secrets.json` in the
-    root directory of your clone of the git repository.
+6. Create a new OAuth client ID. Still on the Credentials tab of the Google
+    Developer console, click the "Create credentials" dropdown. Select
+    "OAuth client ID" from the list and select the application type
+    "Desktop app". Click the "Create" button. Click "OK" in the modal dialog
+    that appears. The new client ID should appear on the Credentials page.
+    Click the "Download JSON" button for your new client ID. A download of
+    the JSON key will start in your browser. Save the file with the name
+    `client_secret.json` in the root directory of your clone of the git
+    repository.
 
 7. Before the first time you run the script, you will need to create a YouTube
     channel. Go to any YouTube video and click the "Add to playlist" icon 
@@ -72,23 +75,20 @@ Usage
     the YouTube channel you created.
 
 9. The first time you run the script, you will have to authenticate the
-    application in a web browser. The script will open a web browser, and you
-    will have to approve the application for the YouTube Account in which you
-    want to create the playlists, and enter the verification code on the
-    command line.
-    If running the script normally doesn't prompt for authentication, try this:
-    ```
-    uv run createbillboardplaylist.py create --noauth_local_webserver
-    ```
-    This will create a file, `oauth2.json`, which must be kept in the root
-    of the git repository as long as you want to upload playlists to this
-    account.
-    Run the script with uv:
+    application in a web browser. Run the script with uv:
     ```sh
     $ uv run createbillboardplaylist.py create
     ```
+    This will open a web browser where you approve the application for the
+    YouTube account in which you want to create the playlists.
+    This will create a file, `token.json`, which must be kept in the root of
+    the git repository as long as you want to upload playlists to this
+    account. It contains your refresh token and should not be shared or
+    committed to git.
 
 10. In subsequent runs of the script you should not have to authenticate again.
+    The access token is refreshed automatically using the stored refresh token,
+    so the script can run unattended (e.g. from cron).
 
 Overriding Videos
 -----------------
@@ -122,10 +122,11 @@ $ uv run createbillboardplaylist.py cache-remove 123
 Troubleshooting
 ---------------
 If the script was working, but you start getting HttpError 404 responses with
-the message "Channel not found.", you may have to re-authorize the application.
-Do this by deleting the `oauth2.json` file and running the script like this:
+the message "Channel not found.", or authentication errors in general, you may
+have to re-authorize the application. Do this by deleting the `token.json`
+file and running the script again:
 ```
-uv run createbillboardplaylist.py create --noauth_local_webserver
+uv run createbillboardplaylist.py create
 ```
 
 Development

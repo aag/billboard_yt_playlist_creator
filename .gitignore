@@ -1,5 +1,5 @@
 .*.swp
 settings.cfg
-client_secrets.json
-oauth2.json
+client_secret.json
+token.json
 cache.db
