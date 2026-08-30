@@ -561,13 +561,13 @@ def parse_args() -> argparse.Namespace:
 
     subparsers.add_parser("create", help="Create this week's Billboard chart playlists")
 
-    add_parser = subparsers.add_parser(
+    set_parser = subparsers.add_parser(
         "cache-set",
         help="Store the video to use for a song in the cache",
     )
-    add_parser.add_argument("artist", help="The artist name")
-    add_parser.add_argument("title", help="The song title")
-    add_parser.add_argument("video_id_or_url", help="A YouTube video ID or URL")
+    set_parser.add_argument("artist", help="The artist name")
+    set_parser.add_argument("title", help="The song title")
+    set_parser.add_argument("video_id_or_url", help="A YouTube video ID or URL")
 
     remove_parser = subparsers.add_parser(
         "cache-remove",
