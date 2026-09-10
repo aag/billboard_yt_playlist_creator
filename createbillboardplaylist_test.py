@@ -443,6 +443,23 @@ class VideoCacheTests(unittest.TestCase):
         self.assertEqual(result, "newid123456")
         self.assertEqual(len(self.store.list_mappings()), 1)
 
+    def test_update_mapping_overwrites_stored_video_id(self) -> None:
+        self.store.set_mapping("test artist", "test song", "oldid123456")
+        mapping_id = self.store.list_mappings()[0][0]
+
+        result = self.store.update_mapping(mapping_id, "newid123456")
+
+        self.assertTrue(result)
+        self.assertEqual(
+            self.store.get_video_id("test artist", "test song"), "newid123456"
+        )
+        self.assertEqual(len(self.store.list_mappings()), 1)
+
+    def test_update_mapping_returns_false_when_not_stored(self) -> None:
+        result = self.store.update_mapping(12345, "newid123456")
+
+        self.assertFalse(result)
+
     def test_remove_mapping_removes_stored_mapping(self) -> None:
         self.store.set_mapping("test artist", "test song", "video123456")
         mapping_id = self.store.list_mappings()[0][0]

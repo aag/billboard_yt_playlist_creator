@@ -112,6 +112,12 @@ Search the stored mappings by artist or title text:
 $ uv run createbillboardplaylist.py cache-search "queen"
 ```
 
+Update the video stored for an existing mapping by its ID (see `cache-list`
+or `cache-search`). The video ID can be given as a raw video ID or a YouTube URL:
+```sh
+$ uv run createbillboardplaylist.py cache-update 123 dQw4w9WgXcQ
+```
+
 Remove a mapping by its ID (see `cache-list` or `cache-search`), so the video
 is searched for again on the next run:
 ```sh

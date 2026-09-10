@@ -315,6 +315,16 @@ class VideoCache(object):
         )
         self.conn.commit()
 
+    def update_mapping(self, id: int, video_id: str) -> bool:
+        """Updates the stored video ID for the mapping with the given ID.
+        Returns True if a mapping was updated"""
+        cursor = self.conn.execute(
+            "UPDATE mappings SET video_id = ? WHERE id = ?",
+            (video_id, id),
+        )
+        self.conn.commit()
+        return cursor.rowcount > 0
+
     def remove_mapping(self, id: int) -> bool:
         """Removes the stored mapping with the given ID. Returns True if a
         mapping was removed"""
@@ -569,6 +579,15 @@ def parse_args() -> argparse.Namespace:
     set_parser.add_argument("title", help="The song title")
     set_parser.add_argument("video_id_or_url", help="A YouTube video ID or URL")
 
+    update_parser = subparsers.add_parser(
+        "cache-update",
+        help="Update the video stored for a cache entry",
+    )
+    update_parser.add_argument(
+        "id", type=int, help="The ID of the stored cache entry to update"
+    )
+    update_parser.add_argument("video_id_or_url", help="A YouTube video ID or URL")
+
     remove_parser = subparsers.add_parser(
         "cache-remove",
         help="Remove a stored cache entry so the song is searched for again",
@@ -620,6 +639,24 @@ def main() -> None:
         else:
             video_cache.set_mapping(args.artist, args.title, video_id)
             logger.info("Stored cache entry for '%s': %s", song_info, video_id)
+
+    elif args.command == "cache-update":
+        video_id = VideoCache.extract_video_id(args.video_id_or_url)
+        if video_id is None:
+            logger.error(
+                "Error: '%s' is not a valid YouTube video ID or URL.",
+                args.video_id_or_url,
+            )
+            sys.exit(1)
+        elif video_cache.update_mapping(args.id, video_id):
+            logger.info(
+                "Updated cache entry with ID %s to use video: %s",
+                args.id,
+                video_id,
+            )
+        else:
+            logger.error("No stored cache entry found with ID %s.", args.id)
+            sys.exit(1)
 
     elif args.command == "cache-remove":
         if video_cache.remove_mapping(args.id):
